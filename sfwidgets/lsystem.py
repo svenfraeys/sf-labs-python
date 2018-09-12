@@ -2,6 +2,134 @@ import math
 from PySide2 import QtWidgets, QtGui, QtCore
 
 
+def calc_fractal_binary_tree(n):
+    rules = {
+        '1': '11',
+        '0': '1[0]0'
+    }
+    return calc_lsystem('0', ['0', '1'], ['[', ']'], rules, n)
+
+
+def paint_fractal_binary_tree(painter, value, size=10.0, angle=25):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(1.0, 0.0)
+    for k in value:
+        if k == '0':
+            turtle.forward(size)
+        elif k == '1':
+            turtle.rotate(-angle)
+        elif k == '[':
+            turtle.push()
+            turtle.rotate(angle)
+        elif k == ']':
+            turtle.pop()
+            turtle.rotate(-angle)
+
+
+def calc_fractal_plant(n):
+    rules = {
+        'X': 'F+[[X]-X]-F[-FX]+X',
+        'F': 'FF'
+    }
+    return calc_lsystem('X', ['X', 'F'], ['+', '-', '[', ']'], rules, n)
+
+
+def paint_fractal_plant(painter, value, size=10.0, angle=25):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(1.0, 0.0)
+    for k in value:
+        if k == 'F':
+            turtle.forward(size)
+        elif k == '-':
+            turtle.rotate(-angle)
+        elif k == '+':
+            turtle.rotate(angle)
+        elif k == '[':
+            turtle.push()
+        elif k == ']':
+            turtle.pop()
+
+
+def calc_dragon_curve(n):
+    rules = {
+        'X': 'X+YF+',
+        'Y': '-FX-Y'
+    }
+    return calc_lsystem('FX', ['X', 'Y'], ['F', '+', '-'], rules, n)
+
+
+def paint_dragon_curve(painter, value, size=10.0, angle=90.0):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(1.0, 0.0)
+    for k in value:
+        if k == 'F':
+            turtle.forward(size)
+        elif k == '+':
+            turtle.rotate(angle)
+        elif k == '-':
+            turtle.rotate(-angle)
+
+
+def calc_sierpinski_arrow_head_curve(n):
+    rules = {
+        'A': 'B-A-B',
+        'B': 'A+B+A'
+    }
+    return calc_lsystem('A', ['A', 'B'], ['+', '-'], rules, n)
+
+
+def paint_sierpinski_arrow_head_curve(painter, value, size=10.0, angle=60.0):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(1.0, 0.0)
+    for k in value:
+        if k == 'A':
+            turtle.forward(size)
+        elif k == 'B':
+            turtle.forward(size)
+        elif k == '+':
+            turtle.rotate(angle)
+        elif k == '-':
+            turtle.rotate(-angle)
+
+
+def calc_sierpinski_triangle(n):
+    rules = {
+        'F': 'F-G+F+G-F',
+        'G': 'GG'
+    }
+    return calc_lsystem('F-G-G', ['F', 'G'], ['+', '-'], rules, n)
+
+
+def paint_sierpinski_triangle(painter, value, size=10.0, angle=120.0):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(1.0, 0.0)
+    for k in value:
+        if k == 'F':
+            turtle.forward(size)
+        elif k == 'G':
+            turtle.forward(size)
+        elif k == '+':
+            turtle.rotate(angle)
+        elif k == '-':
+            turtle.rotate(-angle)
+
+
+def calc_koch_curve(n):
+    return calc_lsystem('F', ['F'], ['+', '-'], {'F': 'F+F-F-F+F'}, n)
+
+
+def paint_koch_curve(painter, value, size):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(1.0, 0.0)
+    for k in value:
+        if k == 'F':
+            turtle.forward(1.0 * size)
+        elif k == '+':
+            turtle.rotate(-90)
+        elif k == '-':
+            turtle.rotate(90)
+
+
 def calc_lsystem(axiom, variables, constants, rules, total):
     start = axiom
 
@@ -15,6 +143,22 @@ def calc_lsystem(axiom, variables, constants, rules, total):
 
         start = result
     return start
+
+
+def paint_fractal_binary_tree(painter, value, size=1.0):
+    turtle = Turtle(painter)
+    turtle.direction = Vec2(0.0, -1.0)
+    for k in value:
+        if k == '1':
+            turtle.forward(1.0 * size)
+        elif k == '0':
+            turtle.forward(1.0 * size)
+        elif k == '[':
+            turtle.push()
+            turtle.rotate(45.0)
+        elif k == ']':
+            turtle.pop()
+            turtle.rotate(-45.0)
 
 
 class Vec2:

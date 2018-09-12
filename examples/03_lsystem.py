@@ -1,60 +1,91 @@
-from PySide2 import QtWidgets
-from sfwidgets.lsystem import LSystemWidget, Vec2
-
-PRESETS = {
-    'Fractal tree': {
-        'variables': ['0', '1'],
-        'constants': ['[', ']'],
-        'axiom': '0',
-        'rules': {'1': '11', '0': '1[0]0'}
-    }
-}
+from PySide2 import QtWidgets, QtGui, QtCore
+from sfwidgets.lsystem import LSystemWidget, Vec2, calc_lsystem
+import sfwidgets.lsystem as lsys
 
 
-class LSystemMainWindow(QtWidgets.QMainWindow):
+class LSystemMainWindow(QtWidgets.QWidget):
     """lsystem widget
     """
 
     def __init__(self):
         super(LSystemMainWindow, self).__init__()
-        self.setWindowTitle('L System')
-        main = QtWidgets.QWidget(self)
+        self.index = 0
+        self.pen = QtGui.QPen(QtGui.QColor(255, 0, 0))
+        self.presets = [
+            ('fractal_binary_tree', 2, (350.0, 400.0), 50.0),
+            ('fractal_binary_tree', 4, (350.0, 400.0), 15.0),
+            ('fractal_binary_tree', 6, (350.0, 400.0), 5.0),
+            ('fractal_binary_tree', 9, (350.0, 400.0), 0.6),
+            ('fractal_binary_tree', 10, (350.0, 400.0), 0.3),
+            ('koch_curve', 2, (150.0, 400.0), 50.0),
+            ('koch_curve', 4, (150.0, 400.0), 5.0),
+            ('koch_curve', 6, (100.0, 400.0), 0.7),
+            ('sierpinski_triangle', 4, (150.0, 400.0), 25.0),
+            ('sierpinski_triangle', 8, (150.0, 400.0), 1.5),
+            ('sierpinski_arrow_head_curve', 2, (150.0, 125.0), 100.0),
+            ('sierpinski_arrow_head_curve', 5, (150.0, 325.0), 10.0),
+            ('sierpinski_arrow_head_curve', 8, (50.0, 20.0), 2.0),
+            ('fractal_plant', 1, (200.0, 250.0), 100.0),
+            ('fractal_plant', 3, (200.0, 250.0), 20.0),
+            ('fractal_plant', 6, (200.0, 250.0), 2.0),
+            ('dragon_curve', 2, (250.0, 150.0), 7.0),
+            ('dragon_curve', 5, (250.0, 150.0), 7.0),
+            ('dragon_curve', 7, (250.0, 150.0), 7.0),
+            ('dragon_curve', 8, (250.0, 150.0), 7.0),
+            ('dragon_curve', 9, (250.0, 150.0), 7.0),
+            ('dragon_curve', 10, (250.0, 150.0), 7.0),
 
-        layout = QtWidgets.QHBoxLayout()
-        main.setLayout(layout)
+        ]
 
-        tools_layout = QtWidgets.QVBoxLayout()
-        layout.addLayout(tools_layout, -1)
-        self.lsystem_widget = LSystemWidget()
-        layout.addWidget(self.lsystem_widget)
+    def paintEvent(self, event):
+        super(LSystemMainWindow, self).paintEvent(event)
+        painter = QtGui.QPainter(self)
+        painter.resetTransform()
+        painter.setPen(self.pen)
 
-        self.calculate_button = QtWidgets.QPushButton('Calculate')
-        self.calculate_button.clicked.connect(self.__do_calculate)
+        type_, iterations, pos, scale = self.presets[self.index]
+        txt = '{} n={}'.format(type_, iterations)
+        painter.drawText(QtCore.QPointF(250, 20), txt)
+        painter.translate(QtCore.QPoint(pos[0], pos[1]))
+        if type_ == 'fractal_plant':
+            value = lsys.calc_fractal_plant(iterations)
+            lsys.paint_fractal_plant(painter, value, size=scale)
+        elif type_ == 'dragon_curve':
+            value = lsys.calc_dragon_curve(iterations)
+            lsys.paint_dragon_curve(painter, value, size=scale)
+        elif type_ == 'sierpinski_arrow_head_curve':
+            value = lsys.calc_sierpinski_arrow_head_curve(iterations)
+            lsys.paint_sierpinski_arrow_head_curve(painter, value, size=scale)
+        elif type_ == 'sierpinski_triangle':
+            value = lsys.calc_sierpinski_triangle(iterations)
+            lsys.paint_sierpinski_triangle(painter, value, size=scale)
+        elif type_ == 'koch_curve':
+            value = lsys.calc_koch_curve(iterations)
+            lsys.paint_koch_curve(painter, value, size=scale)
+        elif type_ == 'fractal_binary_tree':
+            value = lsys.calc_fractal_binary_tree(iterations)
+            lsys.paint_fractal_binary_tree(painter, value, size=scale)
 
-        form_layout = QtWidgets.QFormLayout()
-        self.num_iterations_spinbox = QtWidgets.QSpinBox()
-        self.num_iterations_spinbox.setValue(1)
-        form_layout.addRow('Iterations', self.num_iterations_spinbox)
+        # painter.drawLine(0.0, 0.0, 20.0, 20.0)
 
-        self.presets_combobox = QtWidgets.QComboBox()
-        self.presets_combobox.addItems(PRESETS.keys())
+        head_curve = lsys.calc_sierpinski_arrow_head_curve(5)
+        # lsys.paint_sierpinski_arrow_head_curve(painter, head_curve)
 
-        tools_layout.addLayout(form_layout)
-        tools_layout.addWidget(self.presets_combobox)
-        tools_layout.addWidget(self.calculate_button)
+        # result = lsys.calc_koch_curve(5)
+        # lsys.paint_koch_curve(painter, result, 20)
+        # dc = lsys.calc_dragon_curve(10)
+        # lsys.paint_dragon_curve(painter, dc)
 
-        self.setCentralWidget(main)
+        # triangle = lsys.calc_sierpinski_triangle(4)
+        # lsys.paint_sierpinski_triangle(painter, triangle, size=20.0)
+        # fractal_plant = lsys.calc_fractal_plant(6)
+        # lsys.paint_fractal_plant(painter, fractal_plant)
 
-    def __do_calculate(self):
-        data = PRESETS[self.presets_combobox.currentText()]
-        self.lsystem_widget.iterations = self.num_iterations_spinbox.value()
-        self.lsystem_widget.axiom = data['axiom']
-        self.lsystem_widget.constants = data['constants']
-        self.lsystem_widget.variables = data['variables']
-        self.lsystem_widget.rules = data['rules']
-        self.lsystem_widget.scale = Vec2(1.0, 1.0) / self.num_iterations_spinbox.value()
-        self.lsystem_widget.calc_result()
-        self.lsystem_widget.update()
+    def mousePressEvent(self, *args, **kwargs):
+        self.index += 1
+        if self.index + 1 > len(self.presets):
+            self.index = 0
+        self.update()
 
 
 def main():
