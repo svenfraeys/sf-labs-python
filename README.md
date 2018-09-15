@@ -22,6 +22,8 @@ LSystem adjusted for tree generation.
 
 ## Slider2DWidget
 
+A two dimensional sliding system
+
 ![alt text](images/slider2d.gif "Slider2DWidget")
 
-A two dimensional sliding system
+
