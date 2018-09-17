@@ -15,12 +15,16 @@ LSystem adjusted for tree generation.
 
 ## Mandelbrot
 
-![alt text](images/mandelbrot.gif "LSystem")
+![alt text](images/mandelbrot.gif "Mandelbrot")
+
+## Diamond Square
+
+![alt text](images/diamondsquare.gif "Diamond Square")
 
 
 ## Fibonacci Golden Ratio
 
-![alt text](images/fibonacci_golden_ratio.gif "LSystem")
+![alt text](images/fibonacci_golden_ratio.gif "Fobnacci Golden Ratio")
 
 ## Slider2DWidget
 
