@@ -32,11 +32,15 @@ class Quadtree(object):
         self.south_east = Quadtree(
             QtCore.QRectF(x + hwidth, y + hheight, hwidth, hheight))
 
+        for point in self.points:
+            self.insert(point)
+        self.points = []
+
     def insert(self, point):
         if not self.boundingbox.contains(point):
             return False
 
-        if len(self.points) < self.capacity:
+        if not self.north_west and len(self.points) < self.capacity:
             self.points.append(point)
             return True
 
