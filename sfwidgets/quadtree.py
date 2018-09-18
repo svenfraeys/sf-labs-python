@@ -1,4 +1,8 @@
-from PySide2 import QtWidgets, QtGui, QtCore
+"""
+Quadtree
+https://en.wikipedia.org/wiki/Quadtree
+"""
+from PySide2 import QtCore
 
 
 class Quadtree(object):
