@@ -1,0 +1,112 @@
+import random
+
+import math
+from PySide2 import QtWidgets, QtCore, QtGui
+import sfwidgets.quadtree
+
+
+class QuadTreeDemoWidget(QtWidgets.QWidget):
+    def __init__(self):
+        super(QuadTreeDemoWidget, self).__init__()
+        self.total_points = 800
+        self.points = []
+        layout = QtWidgets.QVBoxLayout()
+        self.label = QtWidgets.QLabel("points")
+        self.label.setStyleSheet("QLabel { background-color : white;}")
+        self.setLayout(layout)
+        self.quadtree = sfwidgets.quadtree.Quadtree(QtCore.QRectF())
+        layout.addWidget(self.label)
+        layout.addStretch()
+
+        self.update_label()
+
+    def generate_points(self):
+        self.points = []
+        midpoint = QtGui.QVector2D(self.width() / 2, self.height() / 2)
+        for i in range(self.total_points):
+            progress = float(i) / float(self.total_points)
+            x = random.random() * self.width()
+            y = random.random() * self.height()
+            v = QtGui.QVector2D(x, y)
+
+            distance = v - midpoint
+            add = (distance * -1) * (float(progress) * float(progress))
+            v += add
+
+            p = QtCore.QPointF(v.x() + math.sin(x) * 20.0, v.y())
+            self.points.append(p)
+
+    def generate_quadtree(self):
+        self.quadtree = sfwidgets.quadtree.Quadtree(
+            QtCore.QRectF(0, 0, self.width(), self.height()))
+        for p in self.points:
+            self.quadtree.insert(p)
+
+    def update_label(self):
+        self.label.setText(
+            "points: {} | capacity: {}".format(
+                self.total_points, sfwidgets.quadtree.Quadtree.capacity))
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        pen = QtGui.QPen(QtGui.QColor(20, 100, 220))
+        painter.setPen(pen)
+        brush = QtGui.QBrush(QtGui.QColor(20, 100, 220))
+        painter.setBrush(brush)
+
+        for point in self.points:
+            painter.drawRect(point.x() - 1, point.y() - 1, 2, 2)
+
+        pen = QtGui.QPen(QtGui.QColor(10, 50, 110))
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush())
+
+        if self.quadtree:
+            sfwidgets.quadtree.paint_quad_tree(painter, self.quadtree)
+
+    def sizeHint(self):
+        return QtCore.QSize(300, 300)
+
+    def showEvent(self, event):
+        self.generate_points()
+        self.generate_quadtree()
+        self.update()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self.total_points *= 2
+        else:
+            res = self.total_points / 2
+            if res > 0:
+                self.total_points = res
+        self.generate_points()
+        self.generate_quadtree()
+        self.update_label()
+        self.update()
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Up:
+            sfwidgets.quadtree.Quadtree.capacity *= 2
+            self.generate_quadtree()
+            self.update()
+            self.update_label()
+        if event.key() == QtCore.Qt.Key_Down:
+            res = sfwidgets.quadtree.Quadtree.capacity / 2
+            if res > 0:
+                sfwidgets.quadtree.Quadtree.capacity = res
+            self.generate_quadtree()
+            self.update()
+            self.update_label()
+
+
+def main():
+    app = QtWidgets.QApplication([])
+    w = QuadTreeDemoWidget()
+    w.setWindowTitle('Quadtree')
+    w.show()
+    app.exec_()
+
+
+if __name__ == '__main__':
+    main()

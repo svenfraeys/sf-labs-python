@@ -1,0 +1,62 @@
+from PySide2 import QtWidgets, QtGui, QtCore
+
+
+class Quadtree(object):
+    """calculate quad tree
+    """
+    capacity = 1
+
+    def __init__(self, boundingbox):
+        self.points = []
+        self.north_west = None
+        self.north_east = None
+        self.south_west = None
+        self.south_east = None
+        self.boundingbox = boundingbox
+
+    def subdivide(self):
+        x = self.boundingbox.x()
+        y = self.boundingbox.y()
+        hwidth = self.boundingbox.width() / 2.0
+        hheight = self.boundingbox.height() / 2.0
+
+        self.north_west = Quadtree(QtCore.QRectF(x, y, hwidth, hheight))
+        self.north_east = Quadtree(
+            QtCore.QRectF(x + hwidth, y, hwidth, hheight))
+        self.south_west = Quadtree(
+            QtCore.QRectF(x, y + hheight, hwidth, hheight))
+        self.south_east = Quadtree(
+            QtCore.QRectF(x + hwidth, y + hheight, hwidth, hheight))
+
+    def insert(self, point):
+        if not self.boundingbox.contains(point):
+            return False
+
+        if len(self.points) < self.capacity:
+            self.points.append(point)
+            return True
+
+        if self.north_west is None:
+            self.subdivide()
+
+        if self.north_west.insert(point):
+            return True
+        if self.north_east.insert(point):
+            return True
+        if self.south_west.insert(point):
+            return True
+        if self.south_east.insert(point):
+            return True
+
+        return False
+
+
+def paint_quad_tree(painter, quadtree):
+    """draw the quad tree
+    """
+    painter.drawRect(quadtree.boundingbox)
+    if quadtree.north_west:
+        paint_quad_tree(painter, quadtree.north_west)
+        paint_quad_tree(painter, quadtree.north_east)
+        paint_quad_tree(painter, quadtree.south_west)
+        paint_quad_tree(painter, quadtree.south_east)
