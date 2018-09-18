@@ -17,10 +17,13 @@ LSystem adjusted for tree generation.
 
 ![alt text](images/mandelbrot.gif "Mandelbrot")
 
+## Quadtree
+
+![alt text](images/quadtree.gif "Quadtree")
+
 ## Diamond Square
 
 ![alt text](images/diamondsquare.gif "Diamond Square")
-
 
 ## Fibonacci Golden Ratio
 
