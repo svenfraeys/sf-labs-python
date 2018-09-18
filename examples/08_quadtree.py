@@ -8,6 +8,7 @@ import sfwidgets.quadtree
 class QuadTreeDemoWidget(QtWidgets.QWidget):
     def __init__(self):
         super(QuadTreeDemoWidget, self).__init__()
+        self.setWindowTitle('Quadtree')
         self.total_points = 800
         self.points = []
         layout = QtWidgets.QVBoxLayout()
@@ -15,6 +16,7 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
         self.label.setStyleSheet("QLabel { background-color : white;}")
         self.setLayout(layout)
         self.quadtree = sfwidgets.quadtree.Quadtree(QtCore.QRectF())
+        sfwidgets.quadtree.Quadtree.capacity = 800
         layout.addWidget(self.label)
         layout.addStretch()
 
@@ -103,7 +105,6 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
 def main():
     app = QtWidgets.QApplication([])
     w = QuadTreeDemoWidget()
-    w.setWindowTitle('Quadtree')
     w.show()
     app.exec_()
 
