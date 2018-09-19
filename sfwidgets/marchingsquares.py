@@ -196,21 +196,26 @@ class MarchingCellsPainter(object):
         self.painter = painter
         self.mc = mc
         self.show_grid = False
+        self.show_number = False
+        self.show_empty_cells = False
 
     def style_grid_line(self):
-        pen = QtGui.QPen(QtGui.QColor(100, 100, 100))
+        c = 200
+        pen = QtGui.QPen(QtGui.QColor(c, c, c))
         self.painter.setPen(pen)
         brush = QtGui.QBrush()
         self.painter.setBrush(brush)
 
     def filled(self):
-        pen = QtGui.QPen(QtGui.QColor(100, 100, 100))
+        c = 200
+        pen = QtGui.QPen(QtGui.QColor(c, c, c))
         self.painter.setPen(pen)
-        brush = QtGui.QBrush(QtGui.QColor(100, 100, 100))
+        brush = QtGui.QBrush(QtGui.QColor(c, c, c))
         self.painter.setBrush(brush)
 
     def empty(self):
-        pen = QtGui.QPen(QtGui.QColor(100, 100, 100))
+        c = 200
+        pen = QtGui.QPen(QtGui.QColor(c, c, c))
         self.painter.setPen(pen)
         brush = QtGui.QBrush()
         self.painter.setBrush(brush)
@@ -225,9 +230,11 @@ class MarchingCellsPainter(object):
     def paint_cell_point(self, x, y, w, h, filled):
         if filled:
             self.filled()
+            self.painter.drawRect(x, y, w, h)
         else:
-            self.empty()
-        self.painter.drawRect(x, y, w, h)
+            if self.show_empty_cells:
+                self.empty()
+                self.painter.drawRect(x, y, w, h)
 
     def paint_line(self, p1, p2):
         pass
@@ -297,14 +304,16 @@ class MarchingCellsPainter(object):
             tr = cell.rect.topRight()
             bl = cell.rect.bottomLeft()
             br = cell.rect.bottomRight()
-            s = 3
+            s = cell.rect.width() / 5
             self.style_grid_line()
             self.paint_cell_point(tl.x(), tl.y(), s, s, cell.tl)
             self.paint_cell_point(tr.x(), tr.y(), -s, s, cell.tr)
             self.paint_cell_point(bl.x(), bl.y(), s, -s, cell.bl)
             self.paint_cell_point(br.x(), br.y(), -s, -s, cell.br)
-            contour_number = cell.contour_line()
-            self.painter.drawText(cell.rect.center(), str(contour_number))
+
+            if self.show_number:
+                contour_number = cell.contour_line()
+                self.painter.drawText(cell.rect.center(), str(contour_number))
 
         self.set_blob_style()
         self.paint_cell_line(cell)

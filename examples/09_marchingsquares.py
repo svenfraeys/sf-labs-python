@@ -18,6 +18,10 @@ class MarchingSquaresDemoWidget(QtWidgets.QWidget):
         self.marching_squares.subdiv_y = 20
         self._generate_points()
         self.mcp = sfwidgets.marchingsquares.MarchingCellsPainter()
+        self.label = QtWidgets.QLabel(self)
+        self.label.resize(150, 20)
+        self.label.setStyleSheet("QLabel { background-color : white;}")
+        self.label.move(QtCore.QPoint(10, 10))
 
     def _generate_points(self):
         self.points = []
@@ -29,7 +33,7 @@ class MarchingSquaresDemoWidget(QtWidgets.QWidget):
             v = QtGui.QVector2D(x, y)
 
             distance = v - midpoint
-            add = (distance * -1) * (float(progress) * float(progress))
+            add = (distance * -1) * (float(progress) ** 3)
             v += add
 
             p = QtCore.QPointF(v.x() + math.sin(x) * 20.0, v.y())
@@ -44,6 +48,7 @@ class MarchingSquaresDemoWidget(QtWidgets.QWidget):
         self.marching_squares.points = self.points
         self.marching_squares.calculate_grid()
         self.marching_squares.calculate_points()
+        self.label.setText(" points: {} | details : {}x{}".format(len(self.points), self.marching_squares.subdiv_x, self.marching_squares.subdiv_y))
         self.update()
 
     def resizeEvent(self, event):
@@ -61,6 +66,14 @@ class MarchingSquaresDemoWidget(QtWidgets.QWidget):
             self.marching_squares.subdiv_x += 2
             self.marching_squares.subdiv_y += 2
             self.start()
+        if event.key() == QtCore.Qt.Key_Left:
+            self.total_points /= 2
+            self._generate_points()
+            self.start()
+        if event.key() == QtCore.Qt.Key_Right:
+            self.total_points *= 2
+            self._generate_points()
+            self.start()
         if event.key() == QtCore.Qt.Key_Down:
             self.marching_squares.subdiv_x -= 2
             self.marching_squares.subdiv_y -= 2
@@ -72,9 +85,10 @@ class MarchingSquaresDemoWidget(QtWidgets.QWidget):
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
-        pen = QtGui.QPen(QtGui.QColor(20, 100, 220))
+        pcolor = 150
+        pen = QtGui.QPen(QtGui.QColor(pcolor, pcolor, pcolor))
         painter.setPen(pen)
-        brush = QtGui.QBrush(QtGui.QColor(20, 100, 220))
+        brush = QtGui.QBrush(QtGui.QColor(pcolor, pcolor, pcolor))
         painter.setBrush(brush)
 
         for point in self.points:
@@ -86,6 +100,9 @@ class MarchingSquaresDemoWidget(QtWidgets.QWidget):
         self.mcp.mc = self.marching_squares
         self.mcp.paint_grid()
         self.mcp.painter = None
+
+    def sizeHint(self):
+        return QtCore.QSize(300, 300)
 
 
 def main():
