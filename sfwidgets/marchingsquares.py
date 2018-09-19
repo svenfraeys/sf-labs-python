@@ -15,77 +15,124 @@ class Cell(object):
         self.bl = False
         self.br = False
 
+        self._topleft = None
+        self._topright = None
+        self._bottomleft = None
+        self._bottomright = None
+        self._top = None
+        self._left = None
+        self._right = None
+        self._bottom = None
+
+    def calc_neighbours(self):
+        self.calc_bottom()
+        self.calc_top()
+        self.calc_left()
+        self.calc_right()
+        self.calc_topleft()
+        self.calc_topright()
+        self.calc_bottomleft()
+        self.calc_bottomright()
+
     def topleft(self):
-        y = self.y - 1
-        if y < 0:
-            return None
-        x = self.x - 1
-        if x < 0:
-            return None
-        return self.mc.grid[y][x]
+        return self._topleft
 
     def topright(self):
-        y = self.y - 1
-        if y < 0:
-            return None
-        x = self.x + 1
-        if x > self.mc.subdiv_x - 1:
-            return None
-        return self.mc.grid[y][x]
+        return self._topright
 
     def bottomleft(self):
-        x = self.x - 1
-        if x < 0:
-            return None
-        y = self.y + 1
-        if y > self.mc.subdiv_y - 1:
-            return None
-        return self.mc.grid[y][x]
+        return self._bottomleft
 
     def bottomright(self):
-        y = self.y + 1
-        if y > self.mc.subdiv_y - 1:
-            return None
-        x = self.x + 1
-        if x > self.mc.subdiv_x - 1:
-            return None
-        return self.mc.grid[y][x]
+        return self._bottomright
 
     def top(self):
+        return self._top
+
+    def bottom(self):
+        return self._bottom
+
+    def left(self):
+        return self._left
+
+    def right(self):
+        return self._right
+
+    def calc_topleft(self):
+        y = self.y - 1
+        if y < 0:
+            return
+        x = self.x - 1
+        if x < 0:
+            return
+        self._topleft = self.mc.grid[y][x]
+
+    def calc_topright(self):
+        y = self.y - 1
+        if y < 0:
+            return
+        x = self.x + 1
+        if x > self.mc.subdiv_x - 1:
+            return
+        self._topright = self.mc.grid[y][x]
+
+    def calc_bottomleft(self):
+        x = self.x - 1
+        if x < 0:
+            return
+        y = self.y + 1
+        if y > self.mc.subdiv_y - 1:
+            return
+        self._bottomleft = self.mc.grid[y][x]
+
+    def calc_bottomright(self):
+        y = self.y + 1
+        if y > self.mc.subdiv_y - 1:
+            return
+        x = self.x + 1
+        if x > self.mc.subdiv_x - 1:
+            return
+
+        self._bottomright = self.mc.grid[y][x]
+
+    def calc_top(self):
         x = self.x
         y = self.y - 1
         if y < 0:
             return None
-        return self.mc.grid[y][x]
+        self._top = self.mc.grid[y][x]
 
-    def bottom(self):
+    def calc_bottom(self):
         x = self.x
         y = self.y + 1
         if y > self.mc.subdiv_y - 1:
             return None
-        return self.mc.grid[y][x]
+        self._bottom = self.mc.grid[y][x]
 
-    def left(self):
+    def calc_left(self):
         y = self.y
         x = self.x - 1
         if x < 0:
             return None
-        return self.mc.grid[y][x]
+        self._left = self.mc.grid[y][x]
 
-    def right(self):
+    def calc_right(self):
         y = self.y
         x = self.x + 1
         if x > self.mc.subdiv_x - 1:
             return None
-        return self.mc.grid[y][x]
+        self._right = self.mc.grid[y][x]
 
     def contains_points(self):
         for p in self.mc.points:
-            if self.rect.contains(p):
+            if self.rect.contains(p.x(), p.y()):
                 return True
         return False
 
     def calculate(self):
+        if self.contains_points():
+            return
+
         t = self.top()
         b = self.bottom()
         l = self.left()
@@ -98,9 +145,6 @@ class Cell(object):
         self.tr = False
         self.bl = False
         self.br = False
-
-        if self.contains_points():
-            return
 
         if t and t.contains_points():
             self.tl = True
@@ -127,7 +171,6 @@ class Cell(object):
         c = self
         if not c.tl and not c.tr and not c.bl and not c.br:
             return 0
-
         elif c.bl and not c.br and not c.tl and not c.tr:
             return 1
         elif c.br and not c.bl and not c.tr and not c.tl:
@@ -173,8 +216,9 @@ class MarchingSquares(object):
 
     def calculate_grid(self):
         self.grid = []
-        x_step = self.rect.width() / self.subdiv_x
-        y_step = self.rect.height() / self.subdiv_y
+        x_step = float(self.rect.width()) / float(self.subdiv_x)
+        y_step = float(self.rect.height()) / float(self.subdiv_y)
+
         for y in range(self.subdiv_y):
             line = []
             self.grid.append(line)
@@ -184,6 +228,11 @@ class MarchingSquares(object):
                          QtCore.QRectF(x * x_step, y * y_step, x_step,
                                        y_step))
                 line.append(c)
+
+        # calc neighbours
+        for y in self.grid:
+            for cell in y:
+                cell.calc_neighbours()
 
     def calculate_points(self):
         for y in self.grid:
