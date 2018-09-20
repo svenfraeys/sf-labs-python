@@ -2,6 +2,8 @@
 Quadtree
 https://en.wikipedia.org/wiki/Quadtree
 """
+import sys
+import math
 from PySide2 import QtCore
 
 
@@ -10,13 +12,120 @@ class Quadtree(object):
     """
     capacity = 1
 
-    def __init__(self, boundingbox):
+    def __init__(self, boundingbox, parent=None):
         self.points = []
+        self.parent = parent
         self.north_west = None
         self.north_east = None
         self.south_west = None
         self.south_east = None
         self.boundingbox = boundingbox
+
+    def top(self):
+        if not self.parent:
+            return None
+        if self.parent.south_east == self:
+            return self.parent.north_east
+        if self.parent.south_west == self:
+            return self.parent.north_west
+        if self.parent.north_east == self:
+            return self.parent.top()
+        if self.parent.north_west == self:
+            return self.parent.top()
+
+    def bottom(self):
+        if not self.parent:
+            return None
+        if self.parent.north_east == self:
+            return self.parent.south_east
+        if self.parent.north_west == self:
+            return self.parent.south_west
+        if self.parent.south_east == self:
+            return self.parent.bottom()
+        if self.parent.south_west == self:
+            return self.parent.bottom()
+
+    def left(self):
+        if not self.parent:
+            return None
+        if self.parent.north_east == self:
+            return self.parent.north_west
+        if self.parent.south_east == self:
+            return self.parent.south_west
+        if self.parent.north_west == self:
+            return self.parent.left()
+        if self.parent.south_west == self:
+            return self.parent.left()
+
+    def right(self):
+        if not self.parent:
+            return None
+        if self.parent.north_east == self:
+            return self.parent.right()
+        if self.parent.south_east == self:
+            return self.parent.right()
+        if self.parent.north_west == self:
+            return self.parent.north_east
+        if self.parent.south_west == self:
+            return self.parent.south_east
+
+    def nearest_quad(self, point):
+        if not self.boundingbox.contains(point):
+            return None
+        if not self.north_west:
+            return self
+
+        # get nearest point
+        res = self.north_west.nearest_quad(point)
+        if res:
+            return res
+        res = self.north_east.nearest_quad(point)
+        if res:
+            return res
+
+        res = self.south_east.nearest_quad(point)
+        if res:
+            return res
+
+        res = self.south_west.nearest_quad(point)
+        if res:
+            return res
+
+    def nearest_point(self, point):
+        if not self.boundingbox.contains(point):
+            return None
+
+        # if we have no children check the points in ourselves
+        if not self.north_west:
+            x = point.x()
+            y = point.y()
+            lowest_length = sys.float_info.max
+            lowest_point = None
+
+            for p in self.points:
+                lx = p.x() - x
+                ly = p.y() - y
+                length = math.sqrt(lx ** 2 + ly ** 2)
+                if length < lowest_length:
+                    lowest_length = length
+                    lowest_point = point
+            return lowest_point
+
+        # get nearest point
+        res = self.north_west.nearest_point(point)
+        if res:
+            return res
+        res = self.north_east.nearest_point(point)
+        if res:
+            return res
+
+        res = self.south_east.nearest_point(point)
+        if res:
+            return res
+
+        res = self.south_west.nearest_point(point)
+        if res:
+            return res
 
     def subdivide(self):
         x = self.boundingbox.x()
@@ -24,13 +133,13 @@ class Quadtree(object):
         hwidth = self.boundingbox.width() / 2.0
         hheight = self.boundingbox.height() / 2.0
 
-        self.north_west = Quadtree(QtCore.QRectF(x, y, hwidth, hheight))
+        self.north_west = Quadtree(QtCore.QRectF(x, y, hwidth, hheight), self)
         self.north_east = Quadtree(
-            QtCore.QRectF(x + hwidth, y, hwidth, hheight))
+            QtCore.QRectF(x + hwidth, y, hwidth, hheight), self)
         self.south_west = Quadtree(
-            QtCore.QRectF(x, y + hheight, hwidth, hheight))
+            QtCore.QRectF(x, y + hheight, hwidth, hheight), self)
         self.south_east = Quadtree(
-            QtCore.QRectF(x + hwidth, y + hheight, hwidth, hheight))
+            QtCore.QRectF(x + hwidth, y + hheight, hwidth, hheight), self)
 
         for point in self.points:
             self.insert(point)

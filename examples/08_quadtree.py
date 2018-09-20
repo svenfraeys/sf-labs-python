@@ -10,13 +10,14 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
         super(QuadTreeDemoWidget, self).__init__()
         self.setWindowTitle('Quadtree')
         self.total_points = 800
+        self.selected_quad = None
         self.points = []
         layout = QtWidgets.QVBoxLayout()
         self.label = QtWidgets.QLabel("points")
         self.label.setStyleSheet("QLabel { background-color : white;}")
         self.setLayout(layout)
         self.quadtree = sfwidgets.quadtree.Quadtree(QtCore.QRectF())
-        sfwidgets.quadtree.Quadtree.capacity = 800
+        sfwidgets.quadtree.Quadtree.capacity = 200
         layout.addWidget(self.label)
         layout.addStretch()
 
@@ -67,6 +68,27 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
         if self.quadtree:
             sfwidgets.quadtree.paint_quad_tree(painter, self.quadtree)
 
+        if self.selected_quad:
+            p = QtGui.QPen()
+            p.setWidth(3)
+            painter.setPen(p)
+            painter.setBrush(QtGui.QBrush())
+            painter.drawRect(self.selected_quad.boundingbox)
+            l = self.selected_quad.left()
+            if l:
+                painter.drawRect(l.boundingbox)
+            r = self.selected_quad.right()
+            if r:
+                painter.drawRect(r.boundingbox)
+
+            b = self.selected_quad.bottom()
+            if b:
+                painter.drawRect(b.boundingbox)
+
+            t = self.selected_quad.top()
+            if t:
+                painter.drawRect(t.boundingbox)
+
     def sizeHint(self):
         return QtCore.QSize(300, 300)
 
@@ -77,17 +99,26 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
-            self.total_points *= 2
-        else:
-            res = self.total_points / 2
-            if res > 0:
-                self.total_points = res
-        self.generate_points()
-        self.generate_quadtree()
-        self.update_label()
-        self.update()
+            self.selected_quad = self.quadtree.nearest_quad(event.pos())
+            self.update()
+            # self.total_points *= 2
+        if event.button() == QtCore.Qt.RightButton:
+            self.selected_quad = None
+            self.update()
 
     def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Right:
+            self.total_points *= 2
+            self.generate_points()
+            self.generate_quadtree()
+            self.update_label()
+            self.update()
+        if event.key() == QtCore.Qt.Key_Left:
+            self.total_points /= 2
+            self.generate_points()
+            self.generate_quadtree()
+            self.update_label()
+            self.update()
         if event.key() == QtCore.Qt.Key_Up:
             sfwidgets.quadtree.Quadtree.capacity *= 2
             self.generate_quadtree()
