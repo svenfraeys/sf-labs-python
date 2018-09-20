@@ -108,23 +108,27 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Right:
+            self.selected_quad = None
             self.total_points *= 2
             self.generate_points()
             self.generate_quadtree()
             self.update_label()
             self.update()
         if event.key() == QtCore.Qt.Key_Left:
+            self.selected_quad = None
             self.total_points /= 2
             self.generate_points()
             self.generate_quadtree()
             self.update_label()
             self.update()
         if event.key() == QtCore.Qt.Key_Up:
+            self.selected_quad = None
             sfwidgets.quadtree.Quadtree.capacity *= 2
             self.generate_quadtree()
             self.update()
             self.update_label()
         if event.key() == QtCore.Qt.Key_Down:
+            self.selected_quad = None
             res = sfwidgets.quadtree.Quadtree.capacity / 2
             if res > 0:
                 sfwidgets.quadtree.Quadtree.capacity = res
