@@ -14,6 +14,7 @@ class Quadtree(object):
 
     def __init__(self, boundingbox, parent=None):
         self.points = []
+        self.depth = 0
         self.parent = parent
         self.north_west = None
         self.north_east = None
@@ -134,12 +135,16 @@ class Quadtree(object):
         hheight = self.boundingbox.height() / 2.0
 
         self.north_west = Quadtree(QtCore.QRectF(x, y, hwidth, hheight), self)
+        self.north_west.depth = self.depth + 1
         self.north_east = Quadtree(
             QtCore.QRectF(x + hwidth, y, hwidth, hheight), self)
+        self.north_east.depth = self.depth + 1
         self.south_west = Quadtree(
             QtCore.QRectF(x, y + hheight, hwidth, hheight), self)
+        self.south_west.depth = self.depth + 1
         self.south_east = Quadtree(
             QtCore.QRectF(x + hwidth, y + hheight, hwidth, hheight), self)
+        self.south_east.depth = self.depth + 1
 
         for point in self.points:
             self.insert(point)
