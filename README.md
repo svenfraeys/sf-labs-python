@@ -9,6 +9,10 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/marchingsquares_particles.gif "Marching Squares Particles")
 
+## Rasterization
+
+![alt text](images/rasterization.gif "Rasterization")
+
 ## LTree
 
 LSystem adjusted for tree generation.
