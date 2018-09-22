@@ -371,6 +371,9 @@ class MarchingCellsPainter(object):
     def paint_grid(self):
         """paint the grid of the marching squares
         """
+        if not self.mc:
+            return
+
         for row in self.mc.grid:
             for cell in row:
                 self.paint_cell(cell)

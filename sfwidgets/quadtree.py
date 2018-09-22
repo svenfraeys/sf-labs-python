@@ -12,7 +12,10 @@ class Quadtree(object):
     """
     capacity = 1
 
-    def __init__(self, boundingbox, parent=None):
+    def __init__(self, boundingbox=None, parent=None):
+        if boundingbox is None:
+            boundingbox = QtCore.QRectF()
+
         self.points = []
         self.depth = 0
         self.parent = parent
@@ -21,6 +24,13 @@ class Quadtree(object):
         self.south_west = None
         self.south_east = None
         self.boundingbox = boundingbox
+
+    def reset(self):
+        self.points = []
+        self.north_west = None
+        self.north_east = None
+        self.south_west = None
+        self.south_east = None
 
     def topleft(self):
         if not self.parent:
@@ -291,6 +301,18 @@ class Quadtree(object):
             return True
 
         return False
+
+    def leafs(self):
+        """return all the leafs of the quadtree
+        """
+        if not self.north_east:
+            return [self]
+        res = []
+        res += self.north_east.leafs()
+        res += self.north_west.leafs()
+        res += self.south_west.leafs()
+        res += self.south_east.leafs()
+        return res
 
 
 def paint_quad_tree(painter, quadtree):
