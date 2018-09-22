@@ -13,6 +13,10 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/rasterization.gif "Rasterization")
 
+## Quadtree
+
+![alt text](images/quadtree.gif "Quadtree")
+
 ## LTree
 
 LSystem adjusted for tree generation.
@@ -30,10 +34,6 @@ LSystem adjusted for tree generation.
 ## Mandelbrot
 
 ![alt text](images/mandelbrot.gif "Mandelbrot")
-
-## Quadtree
-
-![alt text](images/quadtree.gif "Quadtree")
 
 ## Diamond Square
 
