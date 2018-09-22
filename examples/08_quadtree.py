@@ -101,6 +101,14 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
             if tr:
                 painter.drawRect(tr.boundingbox)
 
+            bl = self.selected_quad.bottomleft()
+            if bl:
+                painter.drawRect(bl.boundingbox)
+
+            br = self.selected_quad.bottomright()
+            if br:
+                painter.drawRect(br.boundingbox)
+
     def sizeHint(self):
         return QtCore.QSize(300, 300)
 
