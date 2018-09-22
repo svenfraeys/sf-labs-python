@@ -30,9 +30,15 @@ class Quadtree(object):
         if self.parent.south_west == self:
             return self.parent.north_west
         if self.parent.north_east == self:
-            return self.parent.top()
+            quad = self.parent.top()
+            if quad:
+                quad = quad.south_east if quad.south_east else quad
+            return quad
         if self.parent.north_west == self:
-            return self.parent.top()
+            quad = self.parent.top()
+            if quad:
+                quad = quad.south_west if quad.south_west else quad
+            return quad
 
     def bottom(self):
         if not self.parent:
@@ -42,9 +48,15 @@ class Quadtree(object):
         if self.parent.north_west == self:
             return self.parent.south_west
         if self.parent.south_east == self:
-            return self.parent.bottom()
+            quad = self.parent.bottom()
+            if quad:
+                quad = quad.north_east if quad.north_east else quad
+            return quad
         if self.parent.south_west == self:
-            return self.parent.bottom()
+            quad = self.parent.bottom()
+            if quad:
+                quad = quad.north_west if quad.north_west else quad
+            return quad
 
     def left(self):
         if not self.parent:
@@ -54,17 +66,29 @@ class Quadtree(object):
         if self.parent.south_east == self:
             return self.parent.south_west
         if self.parent.north_west == self:
-            return self.parent.left()
+            quad = self.parent.left()
+            if quad:
+                quad = quad.north_east if quad.north_east else quad
+            return quad
         if self.parent.south_west == self:
-            return self.parent.left()
+            quad = self.parent.left()
+            if quad:
+                quad = quad.south_east if quad.south_east else quad
+            return quad
 
     def right(self):
         if not self.parent:
             return None
         if self.parent.north_east == self:
-            return self.parent.right()
+            quad = self.parent.right()
+            if quad:
+                quad = quad.north_west if quad.north_west else quad
+            return quad
         if self.parent.south_east == self:
-            return self.parent.right()
+            quad = self.parent.right()
+            if quad:
+                quad = quad.south_west if quad.south_west else quad
+            return quad
         if self.parent.north_west == self:
             return self.parent.north_east
         if self.parent.south_west == self:
