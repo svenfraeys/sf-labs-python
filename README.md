@@ -23,6 +23,10 @@ LSystem adjusted for tree generation.
 
 ![alt text](images/lsystem.gif "LSystem")
 
+## Pythagoras Tree
+
+![alt text](images/pythagorastree.gif "LSystem")
+
 ## Mandelbrot
 
 ![alt text](images/mandelbrot.gif "Mandelbrot")
