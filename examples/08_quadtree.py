@@ -89,9 +89,17 @@ class QuadTreeDemoWidget(QtWidgets.QWidget):
             if t:
                 painter.drawRect(t.boundingbox)
 
+            p = QtGui.QPen(QtGui.QColor(200, 0, 0))
+            p.setWidth(2)
+            painter.setPen(p)
+
             tl = self.selected_quad.topleft()
             if tl:
                 painter.drawRect(tl.boundingbox)
+
+            tr = self.selected_quad.topright()
+            if tr:
+                painter.drawRect(tr.boundingbox)
 
     def sizeHint(self):
         return QtCore.QSize(300, 300)
