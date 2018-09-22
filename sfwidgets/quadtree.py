@@ -22,6 +22,27 @@ class Quadtree(object):
         self.south_east = None
         self.boundingbox = boundingbox
 
+    def topleft(self):
+        if not self.parent:
+            return None
+        if self.parent.south_east == self:
+            return self.parent.north_west
+        if self.parent.north_east == self:
+            quad = self.parent.topleft()
+            if quad:
+                quad = quad.south_west if quad.south_west else quad
+            return quad
+        if self.parent.north_west == self:
+            quad = self.parent.topleft()
+            if quad:
+                quad = quad.south_east if quad.south_east else quad
+            return quad
+        if self.parent.south_west == self:
+            quad = self.parent.topleft()
+            if quad:
+                quad = quad.north_east if quad.north_east else quad
+            return quad
+
     def top(self):
         if not self.parent:
             return None
