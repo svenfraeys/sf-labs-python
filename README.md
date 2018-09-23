@@ -17,6 +17,11 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/quadtree.gif "Quadtree")
 
+## Tree Colonization
+
+![alt text](images/treecolonization.gif "LSystem")
+
+
 ## LTree
 
 LSystem adjusted for tree generation.
