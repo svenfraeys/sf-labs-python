@@ -9,6 +9,10 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/marchingsquares_particles.gif "Marching Squares Particles")
 
+## Raytracer
+
+![alt text](images/raytracer.gif "Rasterization")
+
 ## Rasterization
 
 ![alt text](images/rasterization.gif "Rasterization")

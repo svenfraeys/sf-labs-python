@@ -316,10 +316,6 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.cube.matrix.translate(0, 0, 0)
         self.ray_tracer.objects.append(self.cube)
 
-        floor = Cube()
-        floor.matrix.scale(1.5, 0.1, 1.5)
-        self.ray_tracer.objects.append(floor)
-
         # self.ray_tracer.objects.append(Locator())
 
         self.timer = QtCore.QTimer()
@@ -349,6 +345,13 @@ class RayTracerWidget(QtWidgets.QWidget):
 
         if event.key() == QtCore.Qt.Key_R:
             self.render = not self.render
+
+        if event.key() == QtCore.Qt.Key_Up:
+            self.ray_tracer.render_resolution *= 2
+
+        if event.key() == QtCore.Qt.Key_Down:
+            self.ray_tracer.render_resolution /= 2
+            print self.ray_tracer.render_resolution
 
     def device_to_world(self, pos, z):
         screen_v = self.device_to_screen(pos)
@@ -418,7 +421,7 @@ class RayTracerWidget(QtWidgets.QWidget):
     def multiply_matrix(self, v, matrix):
         return (matrix * QtGui.QVector4D(v, 1)).toVector3DAffine()
 
-    def paint_triangle(self, painter, triangle):
+    def paint_triangle(self, painter, triangle, geometry):
         painter.setPen(QtGui.QPen(QtGui.QColor(20, 20, 20)))
         v0_device = self.world_to_device(triangle.vertex0)
         v1_device = self.world_to_device(triangle.vertex1)
@@ -432,14 +435,18 @@ class RayTracerWidget(QtWidgets.QWidget):
 
         edge1 = triangle.vertex1 - triangle.vertex0
         edge2 = triangle.vertex2 - triangle.vertex0
-        normal_start = triangle.vertex0 + (edge1 + edge2) / 4.0
+        edge3 = triangle.vertex2 - triangle.vertex1
+        normal_start = (triangle.vertex0 + triangle.vertex1 + triangle.vertex2) / 3.0
+        normal_end = normal_start + (self.multiply_matrix(triangle.normal / 5.0, geometry.matrix))
+        # normal_end = normal_start
+        # normal_start = triangle.vertex0 + (edge1 + edge2) / 2.0
 
-        normal_end = normal_start + triangle.normal / 2.0
+        self.paint_vertex(painter, normal_start)
         self.paint_line(painter, normal_start, normal_end)
 
     def paint_geometry(self, painter, geometry):
         for t in geometry.tris:
-            self.paint_triangle(painter, t * geometry.matrix)
+            self.paint_triangle(painter, t * geometry.matrix, geometry)
 
         for v in geometry.verts:
             self.paint_vertex(painter,
@@ -493,6 +500,8 @@ class RayTracerWidget(QtWidgets.QWidget):
                 elif isinstance(obj, PointLight):
                     self.paint_light(painter, obj)
 
+    def sizeHint(self, *args, **kwargs):
+        return QtCore.QSize(300, 300)
 
 def main():
     app = QtWidgets.QApplication([])
