@@ -1,6 +1,6 @@
 """ray tracer
 """
-import numpy
+import numpy as np
 import time
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -32,7 +32,7 @@ class Triangle(object):
 class PointLight(object):
     def __init__(self):
         self.matrix = QtGui.QMatrix4x4()
-        self.color = QtGui.QVector3D(1, 1, 1)
+        self.color = np.array([1, 1, 1])
 
     def position(self):
         return QtGui.QVector3D(self.matrix.column(3))
@@ -158,16 +158,25 @@ class Cube(Geometry):
 
 class RayTracer(object):
     def __init__(self):
+        self.is_rendering = False
         self.render_camera = Camera()
         self.objects = []
-        self.render_resolution = QtCore.QSize()
+        self.__render_resolution = QtCore.QSize()
         self.only_sample_nearest = True
-        self.output_data = []
+        self.__output_data = []
         self._screen_to_world_cache = {}
         self.fps = 0.00
         self.vp = QtGui.QMatrix4x4()
         self.vp_inverted = QtGui.QMatrix4x4()
         self.rays = []
+
+    @property
+    def render_resolution(self):
+        return self.__render_resolution
+
+    @render_resolution.setter
+    def render_resolution(self, value):
+        self.__render_resolution = value
 
     @staticmethod
     def multiply_matrix(v, matrix):
@@ -179,6 +188,10 @@ class RayTracer(object):
             if isinstance(obj, PointLight):
                 lights.append(obj)
         return lights
+
+    def setup_output_data(self):
+        self.__output_data = np.zeros((self.render_resolution.width(),
+                                       self.render_resolution.height(), 3))
 
     def calculate_matrices(self):
         self.vp = (self.render_camera.projection * self.render_camera.matrix)
@@ -267,7 +280,7 @@ class RayTracer(object):
         h = QtGui.QVector3D.crossProduct(ray.direction, edge2)
         a = QtGui.QVector3D.dotProduct(edge1, h)
 
-        if a > -epsilon and a < epsilon:
+        if -epsilon < a < epsilon:
             return None
         f = 1 / a
         s = ray.pos - vertex0
@@ -287,7 +300,7 @@ class RayTracer(object):
         else:
             return None
 
-    def render_tri(self, geometry, tri, pos):
+    def render_tri(self, geometry, tri, pos, color):
         object_color = geometry.object_color
 
         ambient_diffuse = QtGui.QVector3D()
@@ -304,13 +317,10 @@ class RayTracer(object):
             ambient_diffuse += ambient + diffuse
 
         ambient_diffuse /= len(lights)
-        color = ambient_diffuse * object_color
-
-        color = QtGui.QColor(color.x() * 255,
-                             color.y() * 255,
-                             color.z() * 255)
-
-        return color
+        color_out = ambient_diffuse * object_color
+        color[0] = color_out.x()
+        color[1] = color_out.y()
+        color[2] = color_out.z()
 
     def screen_to_world_cache(self, x, y, z):
         key = "{}-{}-{}".format(x, y, z)
@@ -321,9 +331,9 @@ class RayTracer(object):
         self._screen_to_world_cache[key] = pos
         return pos
 
-    def render_pixel(self, ray):
+    def render_pixel(self, ray, color):
         hitting_tris = {}
-
+        hit_geo = False
         for obj in self.objects:
             if isinstance(obj, Geometry):
                 if not self.intersect_aabb(obj.aabb_worldspace, ray):
@@ -332,8 +342,14 @@ class RayTracer(object):
                     tri = tri * obj.matrix
                     pos = self.intersect_triangle(ray, tri)
                     if pos:
+                        hit_geo = True
                         distance = (pos - ray.pos).length()
                         hitting_tris[distance] = (obj, tri, pos)
+        if not hit_geo:
+            color[0] = 0.3
+            color[1] = 0.3
+            color[2] = 0.3
+            return
 
         keys = hitting_tris.keys()
 
@@ -342,16 +358,17 @@ class RayTracer(object):
             if self.only_sample_nearest:
                 k = keys[0]
                 geometry, tri, pos = hitting_tris[k]
-                c = self.render_tri(geometry, tri, pos)
-                return c
+                self.render_tri(geometry, tri, pos, color)
+                return
             else:
-                c = None
                 for k in reversed(keys):
                     geometry, tri, pos = hitting_tris[k]
-                    c = self.render_tri(geometry, tri, pos)
-                return c
+                    self.render_tri(geometry, tri, pos, color)
+                return
 
-        return QtGui.QColor(200, 200, 200)
+        color[0] = 0.3
+        color[1] = 0.3
+        color[2] = 0.3
 
     def calculate_rays(self):
         width = self.render_resolution.width()
@@ -379,21 +396,38 @@ class RayTracer(object):
         self.rays = rays
 
     def render(self):
+        self.is_rendering = True
         start = time.time()
         width = self.render_resolution.width()
         height = self.render_resolution.height()
+
+        for y, col in enumerate(self.__output_data):
+            for x, color in enumerate(col):
+                ray = self.rays[y][x]
+                self.render_pixel(ray, color)
+
         output_image = []
-        for y in range(height):
+        for x in self.__output_data:
             row = []
             output_image.append(row)
-            for x in range(width):
-                ray = self.rays[y][x]
-                color = self.render_pixel(ray)
 
-                row.append(color)
+            for color in x:
+                r = color[0] * 255
+                r = r if r < 255 else 255
+                g = color[1] * 255
+                g = g if g < 255 else 255
+                b = color[2] * 255
+                b = b if b < 255 else 255
+                c = QtGui.QColor(r, g, b)
+                row.append(c)
 
-        self.output_data = output_image
+        # self.output_data = output_image
         self.fps = 1.0 / float(time.time() - start)
+        self.is_rendering = False
+
+    @property
+    def output_data(self):
+        return self.__output_data
 
 
 class RayTracerWidget(QtWidgets.QWidget):
@@ -427,6 +461,7 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.ray_tracer.objects.append(self.cube)
         self.ray_tracer.calculate_matrices()
         self.ray_tracer.calculate_rays()
+        self.ray_tracer.setup_output_data()
 
         # self.ray_tracer.objects.append(Locator())
 
@@ -461,11 +496,13 @@ class RayTracerWidget(QtWidgets.QWidget):
 
         if event.key() == QtCore.Qt.Key_Up:
             self.ray_tracer.render_resolution *= 2
-            self.ray_tracer.output_data = []
+            self.ray_tracer.setup_output_data()
+            self.ray_tracer.calculate_rays()
 
         if event.key() == QtCore.Qt.Key_Down:
             self.ray_tracer.render_resolution /= 2
-            self.ray_tracer.output_data = []
+            self.ray_tracer.setup_output_data()
+            self.ray_tracer.calculate_rays()
 
     def device_to_world(self, pos, z):
         screen_v = self.device_to_screen(pos)
@@ -577,7 +614,8 @@ class RayTracerWidget(QtWidgets.QWidget):
 
                 painter.fillRect(paint_x, paint_y, pixel_width + 1,
                                  pixel_height + 1,
-                                 color)
+                                 QtGui.QColor(color[0] * 255, color[1] * 255,
+                                              color[2] * 255))
                 # painter.drawRect(paint_x, paint_y, pixel_width, pixel_height)
 
     def paint_light(self, painter, obj):
