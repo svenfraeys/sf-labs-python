@@ -1,9 +1,16 @@
 """ray tracer
 """
+import numpy
 import time
 from PySide2 import QtWidgets, QtGui, QtCore
 
 DEBUG = True
+
+
+class AABB(object):
+    def __init__(self, min_, max_):
+        self.min = min_
+        self.max = max_
 
 
 class Triangle(object):
@@ -54,7 +61,45 @@ class Geometry(object):
         self.matrix = QtGui.QMatrix4x4()
         self.verts = []
         self.tris = []
+        self.__aabb = None
+        self.__aabb_worldspace = None
         self.object_color = QtGui.QVector3D(1, 1, 1)
+
+    @property
+    def aabb(self):
+        return self.__aabb
+
+    @aabb.setter
+    def aabb(self, value):
+        self.__aabb = value
+        self.calculate()
+
+    def calculate(self):
+        min_ = QtGui.QVector3D()
+        max_ = QtGui.QVector3D()
+
+        for v in self.verts:
+            v = RayTracer.multiply_matrix(v, self.matrix)
+            if v.x() < min_.x():
+                min_.setX(v.x())
+            if v.y() < min_.y():
+                min_.setY(v.y())
+            if v.z() < min_.z():
+                min_.setZ(v.z())
+
+            if v.x() > max_.x():
+                max_.setX(v.x())
+            if v.y() > max_.y():
+                max_.setY(v.y())
+            if v.z() > max_.z():
+                max_.setZ(v.z())
+        self.__aabb_worldspace = AABB(min_, max_)
+
+    @property
+    def aabb_worldspace(self):
+        """return world space bounding box
+        """
+        return self.__aabb_worldspace
 
     def position(self):
         return QtGui.QVector3D(self.matrix.column(3))
@@ -108,7 +153,7 @@ class Cube(Geometry):
             t = Triangle(p0, p1, p2, n)
             self.tris.append(t)
 
-        return
+        self.aabb = AABB(QtGui.QVector3D(-1, -1, -1), QtGui.QVector3D(1, 1, 1))
 
 
 class RayTracer(object):
@@ -120,6 +165,10 @@ class RayTracer(object):
         self.output_data = []
         self._screen_to_world_cache = {}
         self.fps = 0.00
+
+    @staticmethod
+    def multiply_matrix(v, matrix):
+        return (matrix * QtGui.QVector4D(v, 1)).toVector3DAffine()
 
     def get_lights(self):
         lights = []
@@ -143,6 +192,63 @@ class RayTracer(object):
         edge1 = v1 - v0
         edge2 = v2 - v0
         return QtGui.QVector3D.crossProduct(edge1, edge2).normalized()
+
+    def intersect_aabb(self, bbaa, ray):
+        """check if a point intersects a bbaa
+        """
+        origin = [ray.pos.x(), ray.pos.y(), ray.pos.z()]
+        dir_ = [ray.direction.x(), ray.direction.y(), ray.direction.z()]
+        RIGHT = 0
+        LEFT = 1
+        MIDDLE = 2
+
+        numdim = 3
+        inside = True
+        quadrant = [-1] * 3
+
+        maxT = [0.0] * 3
+        candidatePlane = [0.0] * 3
+        minB = [bbaa.min.x(), bbaa.min.y(), bbaa.min.z()]
+        maxB = [bbaa.max.x(), bbaa.max.y(), bbaa.max.z()]
+
+        for i in range(numdim):
+            if origin[i] < minB[i]:
+                quadrant[i] = 1
+                candidatePlane[i] = LEFT
+                inside = False
+            elif origin[i] > maxB[i]:
+                quadrant[i] = RIGHT
+                candidatePlane[i] = maxB[i]
+                inside = False
+            else:
+                quadrant[i] = MIDDLE
+
+        if inside:
+            return QtGui.QVector3D(*origin)
+
+        for i in range(numdim):
+            if quadrant[i] != MIDDLE and dir_[i] != 0.0:
+                maxT[i] = (candidatePlane[i] - origin[i]) / dir_[i]
+            else:
+                maxT[i] = -1.0
+
+        which_plane = 0
+        for i in range(numdim):
+            if maxT[which_plane] < maxT[i]:
+                which_plane = i
+
+        if maxT[which_plane] < 0.0:
+            return None
+
+        coord = [0.0] * 3
+        for i in range(numdim):
+            if which_plane != i:
+                coord[i] = origin[i] + maxT[which_plane] * dir_[i]
+                if coord[i] < minB[i] or coord[i] > maxB[i]:
+                    return None
+            else:
+                coord[i] = candidatePlane[i]
+        return QtGui.QVector3D(*coord)
 
     def intersect_triangle(self, ray, triangle):
         # https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
@@ -222,6 +328,8 @@ class RayTracer(object):
 
         for obj in self.objects:
             if isinstance(obj, Geometry):
+                if not self.intersect_aabb(obj.aabb_worldspace, ray):
+                    continue
                 for tri in obj.tris:
                     tri = tri * obj.matrix
                     pos = self.intersect_triangle(ray, tri)
@@ -320,6 +428,7 @@ class RayTracerWidget(QtWidgets.QWidget):
 
     def tick(self):
         self.cube.matrix.rotate(1, QtGui.QVector3D(0, 1, 0))
+        self.cube.calculate()
         self.update()
 
     def keyPressEvent(self, event):
@@ -381,7 +490,8 @@ class RayTracerWidget(QtWidgets.QWidget):
         painter.fillRect(v_device.x() - 2, v_device.y() - 2, 4, 4,
                          QtGui.QColor(150, 150, 150))
 
-    def multiply_matrix(self, v, matrix):
+    @staticmethod
+    def multiply_matrix(v, matrix):
         return (matrix * QtGui.QVector4D(v, 1)).toVector3DAffine()
 
     def paint_triangle(self, painter, triangle, geometry):
@@ -399,8 +509,10 @@ class RayTracerWidget(QtWidgets.QWidget):
         edge1 = triangle.vertex1 - triangle.vertex0
         edge2 = triangle.vertex2 - triangle.vertex0
         edge3 = triangle.vertex2 - triangle.vertex1
-        normal_start = (triangle.vertex0 + triangle.vertex1 + triangle.vertex2) / 3.0
-        normal_end = normal_start + (self.multiply_matrix(triangle.normal / 5.0, geometry.matrix))
+        normal_start = (
+                           triangle.vertex0 + triangle.vertex1 + triangle.vertex2) / 3.0
+        normal_end = normal_start + (
+            self.multiply_matrix(triangle.normal / 5.0, geometry.matrix))
         # normal_end = normal_start
         # normal_start = triangle.vertex0 + (edge1 + edge2) / 2.0
 
@@ -415,7 +527,15 @@ class RayTracerWidget(QtWidgets.QWidget):
             self.paint_vertex(painter,
                               self.multiply_matrix(v, geometry.matrix))
 
+        self.paint_aabb(painter, geometry.aabb_worldspace)
         self.paint_pivot(painter, geometry.matrix)
+
+    def paint_aabb(self, painter, aabb):
+        p2_device = self.world_to_device(aabb.min)
+        p1_device = self.world_to_device(aabb.max)
+
+        painter.setPen(QtGui.QPen(QtGui.QColor(255, 0, 255)))
+        painter.drawLine(p1_device, p2_device)
 
     def paint_locator(self, painter, locator):
         self.paint_pivot(painter, locator.matrix)
@@ -453,7 +573,8 @@ class RayTracerWidget(QtWidgets.QWidget):
 
         self.paint_output_data(painter)
         rays = self.ray_tracer.render_resolution.width() * self.ray_tracer.render_resolution.height()
-        info = "Raytracer | {:.2f} fps | {} rays".format(self.ray_tracer.fps, rays)
+        info = "Raytracer | {:.2f} fps | {} rays".format(self.ray_tracer.fps,
+                                                         rays)
         painter.drawText(20, 20, info)
         if self.show_viewport:
             for obj in self.ray_tracer.objects:
