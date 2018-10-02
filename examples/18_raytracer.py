@@ -165,6 +165,9 @@ class RayTracer(object):
         self.output_data = []
         self._screen_to_world_cache = {}
         self.fps = 0.00
+        self.vp = QtGui.QMatrix4x4()
+        self.vp_inverted = QtGui.QMatrix4x4()
+        self.rays = []
 
     @staticmethod
     def multiply_matrix(v, matrix):
@@ -177,15 +180,17 @@ class RayTracer(object):
                 lights.append(obj)
         return lights
 
+    def calculate_matrices(self):
+        self.vp = (self.render_camera.projection * self.render_camera.matrix)
+        self.vp_inverted = self.vp.inverted()[0]
+
     def world_to_screen(self, v):
-        mv = (self.render_camera.projection * self.render_camera.matrix)
-        v4 = mv * QtGui.QVector4D(v, 1)
+        v4 = self.vp * QtGui.QVector4D(v, 1)
         return v4.toVector3DAffine()
 
     def screen_to_world(self, v):
         v4 = QtGui.QVector4D(v, 1)
-        vp = self.render_camera.projection * self.render_camera.matrix
-        return (vp.inverted()[0] * v4).toVector3DAffine()
+        return (self.vp_inverted * v4).toVector3DAffine()
 
     @staticmethod
     def calculate_normal(v0, v1, v2):
@@ -316,14 +321,7 @@ class RayTracer(object):
         self._screen_to_world_cache[key] = pos
         return pos
 
-    def render_pixel(self, screen_x, screen_y):
-        far = self.screen_to_world_cache(screen_x, screen_y, -1)
-        near = self.screen_to_world_cache(screen_x, screen_y, 1)
-
-        direction = (far - near).normalized()
-        ray = Ray()
-        ray.direction = direction
-        ray.pos = near
+    def render_pixel(self, ray):
         hitting_tris = {}
 
         for obj in self.objects:
@@ -355,23 +353,42 @@ class RayTracer(object):
 
         return QtGui.QColor(200, 200, 200)
 
-    def render(self):
-        start = time.time()
+    def calculate_rays(self):
         width = self.render_resolution.width()
         height = self.render_resolution.height()
         step_width = 1.0 / float(width)
         step_height = 1.0 / float(height)
         half_step_width = step_width / 2.0
         half_step_height = step_height / 2.0
+        rays = []
+        for y in range(height):
+            row = []
+            rays.append(row)
+            for x in range(width):
+                screen_y = ((((
+                                  step_height * y) + half_step_height) * 2.0) - 1.0) * -1
+                screen_x = (((step_width * x) + half_step_width) * 2.0) - 1.0
+                far = self.screen_to_world_cache(screen_x, screen_y, -1)
+                near = self.screen_to_world_cache(screen_x, screen_y, 1)
+
+                direction = (far - near).normalized()
+                ray = Ray()
+                ray.direction = direction
+                ray.pos = near
+                row.append(ray)
+        self.rays = rays
+
+    def render(self):
+        start = time.time()
+        width = self.render_resolution.width()
+        height = self.render_resolution.height()
         output_image = []
         for y in range(height):
             row = []
             output_image.append(row)
             for x in range(width):
-                screen_y = ((((
-                                  step_height * y) + half_step_height) * 2.0) - 1.0) * -1
-                screen_x = (((step_width * x) + half_step_width) * 2.0) - 1.0
-                color = self.render_pixel(screen_x, screen_y)
+                ray = self.rays[y][x]
+                color = self.render_pixel(ray)
 
                 row.append(color)
 
@@ -389,6 +406,7 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.render = False
 
         self.ray_tracer = RayTracer()
+
         self.ray_tracer.render_resolution = QtCore.QSize(32, 32)
         self.ray_tracer.render_camera = Camera()
         self.ray_tracer.render_camera.matrix.lookAt(
@@ -407,6 +425,8 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.cube = Cube()
         self.cube.matrix.translate(0, 0, 0)
         self.ray_tracer.objects.append(self.cube)
+        self.ray_tracer.calculate_matrices()
+        self.ray_tracer.calculate_rays()
 
         # self.ray_tracer.objects.append(Locator())
 
