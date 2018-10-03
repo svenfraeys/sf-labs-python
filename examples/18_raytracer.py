@@ -2,15 +2,26 @@
 """
 import numpy as np
 import time
+
+import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 DEBUG = True
+REFLECTION_RERENDER_PIXEL = False
 
 
-class AABB(object):
+class BoundingBox(object):
     def __init__(self, min_, max_):
         self.min = min_
         self.max = max_
+
+
+class DataPoint(object):
+    def __init__(self, pos=None, geometry=None, tri=None, world_tri=None):
+        self.pos = pos
+        self.geometry = geometry
+        self.tri = tri
+        self.world_tri = world_tri
 
 
 class Triangle(object):
@@ -64,20 +75,21 @@ class Camera(object):
 
 class Geometry(object):
     def __init__(self):
+        self.name = ""
         self.matrix = QtGui.QMatrix4x4()
         self.verts = []
         self.tris = []
-        self.__aabb = None
-        self.__aabb_worldspace = None
+        self.__boundingbox = None
+        self.__boundingbox_worldspace = None
         self.object_color = QtGui.QVector3D(1, 1, 1)
 
     @property
-    def aabb(self):
-        return self.__aabb
+    def boundingbox(self):
+        return self.__boundingbox
 
-    @aabb.setter
-    def aabb(self, value):
-        self.__aabb = value
+    @boundingbox.setter
+    def boundingbox(self, value):
+        self.__boundingbox = value
         self.calculate()
 
     def calculate(self):
@@ -99,13 +111,13 @@ class Geometry(object):
                 max_.setY(v.y())
             if v.z() > max_.z():
                 max_.setZ(v.z())
-        self.__aabb_worldspace = AABB(min_, max_)
+        self.__boundingbox_worldspace = BoundingBox(min_, max_)
 
     @property
-    def aabb_worldspace(self):
+    def boundingbox_worldspace(self):
         """return world space bounding box
         """
-        return self.__aabb_worldspace
+        return self.__boundingbox_worldspace
 
     def position(self):
         return QtGui.QVector3D(self.matrix.column(3))
@@ -159,7 +171,8 @@ class Cube(Geometry):
             t = Triangle(p0, p1, p2, n)
             self.tris.append(t)
 
-        self.aabb = AABB(QtGui.QVector3D(-1, -1, -1), QtGui.QVector3D(1, 1, 1))
+        self.boundingbox = BoundingBox(QtGui.QVector3D(-1, -1, -1),
+                                       QtGui.QVector3D(1, 1, 1))
 
 
 class RayTracer(object):
@@ -176,6 +189,13 @@ class RayTracer(object):
         self.vp_inverted = QtGui.QMatrix4x4()
         self.rays = []
         self.enabled_shadows = True
+        self.enabled_reflections = True
+
+    def remove_matrix_translation(self, matrix):
+        matrix = QtGui.QMatrix4x4(matrix)
+        v = QtGui.QVector3D(matrix.column(3))
+        matrix.translate(v)
+        return matrix
 
     @property
     def render_resolution(self):
@@ -218,7 +238,7 @@ class RayTracer(object):
         edge2 = v2 - v0
         return QtGui.QVector3D.crossProduct(edge1, edge2).normalized()
 
-    def intersect_aabb(self, bbaa, ray):
+    def intersect_boundingbox(self, bbaa, ray):
         """check if a point intersects a bbaa
         """
         origin = [ray.pos.x(), ray.pos.y(), ray.pos.z()]
@@ -310,7 +330,24 @@ class RayTracer(object):
     def nparray_to_vector3D(self, array):
         return QtGui.QVector3D(array[0], array[1], array[2])
 
-    def render_tri(self, geometry, tri, pos, color):
+    def reflect_vector(self, vector, normal):
+        dot = QtGui.QVector3D.dotProduct(vector, normal)
+        return vector - (normal * 2 * dot)
+
+        r = -vector - (-dot) * normal
+        return vector + 2*r
+        return -2 * (
+            QtGui.QVector3D.dotProduct(vector, normal) * normal) + vector
+        return ((2 * QtGui.QVector3D.dotProduct(vector,
+                                               normal)) * normal) - vector
+        return vector - (
+            2 * QtGui.QVector3D.dotProduct(vector, normal) * normal)
+
+
+
+
+
+    def render_tri(self, geometry, tri, pos, color, ray, reflections=True):
         object_color = geometry.object_color
 
         ambient_diffuse = QtGui.QVector3D()
@@ -329,15 +366,44 @@ class RayTracer(object):
                 light_ray = (light.position() - pos)
                 light_ray.normalized()
                 ray = Ray(pos, light_ray)
-                intersected_pos = self.intersected_geometry(ray,
-                                                            ignore_geo=[geometry])
-                if intersected_pos:
+                intersected_data = self.intersected_geometry(ray, ignore_geo=[
+                    geometry])
+                if intersected_data:
                     # v = intersected_pos - pos
                     # v.normalize()
                     diff /= 2
 
             diffuse = diff * light.color
             ambient_diffuse += ambient + diffuse
+
+        if self.enabled_reflections and reflections:
+            reflection_ray = Ray()
+            world_tri = tri * geometry.matrix
+            normal = self.calculate_normal(world_tri.vertex0,
+                                                      world_tri.vertex1,
+                                                      world_tri.vertex2)
+            refl_direction = self.reflect_vector(ray.direction.normalized(), normal * -1)
+            reflection_ray.direction = refl_direction
+            reflection_ray.pos = pos
+            refl_data = self.intersected_geometries(reflection_ray,
+                                                  ignore_tri=[tri],
+                                                  ignore_geo=[geometry])
+
+            refl_data = self.get_nearest_data_point(reflection_ray.pos, refl_data)
+
+            if refl_data and refl_data.tri != tri:
+                refl_color = [0.0, 0.0, 0.0]
+                screen_pos = self.world_to_screen(refl_data.pos)
+                relf_ray = self.screen_to_ray(screen_pos)
+                if REFLECTION_RERENDER_PIXEL:
+                    self.render_pixel(relf_ray, refl_color)
+                else:
+                    self.render_tri(refl_data.geometry, refl_data.tri,
+                                    refl_data.pos, refl_color, relf_ray,
+                                    reflections=False)
+                relf_c = QtGui.QVector3D(refl_color[0], refl_color[1],
+                                         refl_color[2])
+                object_color = relf_c
 
         ambient_diffuse /= len(lights)
         color_out = ambient_diffuse * object_color
@@ -354,28 +420,46 @@ class RayTracer(object):
         self._screen_to_world_cache[key] = pos
         return pos
 
-    def intersected_geometry(self, ray, ignore_geo=None):
+    def intersected_geometry(self, ray, ignore_geo=None, ignore_tri=None):
+        res = self.intersected_geometries(ray, ignore_geo=ignore_geo,
+                                           ignore_tri=ignore_tri, first=True)
+        if res:
+            return res[0]
+        else:
+            return None
+
+    def intersected_geometries(self, ray, ignore_geo=None, ignore_tri=None,
+                               first=False):
+        data_list = []
         for obj in self.objects:
             if isinstance(obj, Geometry):
-                if obj in ignore_geo:
+                if ignore_geo and obj in ignore_geo:
                     continue
 
-                if not self.intersect_aabb(obj.aabb_worldspace, ray):
+                if not self.intersect_boundingbox(obj.boundingbox_worldspace,
+                                                  ray):
                     continue
 
                 for tri in obj.tris:
-                    tri = tri * obj.matrix
-                    pos = self.intersect_triangle(ray, tri)
+                    if ignore_tri and tri in ignore_tri:
+                        continue
+                    # put the triangle in world space
+                    world_tri = tri * obj.matrix
+                    pos = self.intersect_triangle(ray, world_tri)
                     if pos:
-                        return pos
-        return None
+                        data = DataPoint(pos=pos, tri=tri, geometry=obj, world_tri=world_tri)
+                        data_list.append(data)
+                        if first:
+                            return data_list
+        return data_list
 
     def render_pixel(self, ray, color):
         hitting_tris = {}
         hit_geo = False
         for obj in self.objects:
             if isinstance(obj, Geometry):
-                if not self.intersect_aabb(obj.aabb_worldspace, ray):
+                if not self.intersect_boundingbox(obj.boundingbox_worldspace,
+                                                  ray):
                     continue
                 for tri in obj.tris:
                     tri = tri * obj.matrix
@@ -397,17 +481,26 @@ class RayTracer(object):
             if self.only_sample_nearest:
                 k = keys[0]
                 geometry, tri, pos = hitting_tris[k]
-                self.render_tri(geometry, tri, pos, color)
+                self.render_tri(geometry, tri, pos, color, ray)
                 return
             else:
                 for k in reversed(keys):
                     geometry, tri, pos = hitting_tris[k]
-                    self.render_tri(geometry, tri, pos, color)
+                    self.render_tri(geometry, tri, pos, color, ray)
                 return
 
         color[0] = 0.3
         color[1] = 0.3
         color[2] = 0.3
+
+    def screen_to_ray(self, screen_pos):
+        far = self.screen_to_world_cache(screen_pos.x(), screen_pos.y(), -1)
+        near = self.screen_to_world_cache(screen_pos.x(), screen_pos.y(), 1)
+        direction = (far - near).normalized()
+        ray = Ray()
+        ray.direction = direction
+        ray.pos = near
+        return ray
 
     def calculate_rays(self):
         width = self.render_resolution.width()
@@ -424,13 +517,7 @@ class RayTracer(object):
                 screen_y = ((((
                                   step_height * y) + half_step_height) * 2.0) - 1.0) * -1
                 screen_x = (((step_width * x) + half_step_width) * 2.0) - 1.0
-                far = self.screen_to_world_cache(screen_x, screen_y, -1)
-                near = self.screen_to_world_cache(screen_x, screen_y, 1)
-
-                direction = (far - near).normalized()
-                ray = Ray()
-                ray.direction = direction
-                ray.pos = near
+                ray = self.screen_to_ray(QtGui.QVector2D(screen_x, screen_y))
                 row.append(ray)
         self.rays = rays
 
@@ -468,6 +555,16 @@ class RayTracer(object):
     def output_data(self):
         return self.__output_data
 
+    def get_nearest_data_point(self, p, data_points):
+        nearest_distance = sys.float_info.max
+        nearest_data_point = None
+        for data_point in data_points:
+            distance = (data_point.pos - p).length()
+            if distance < nearest_distance:
+                nearest_distance = distance
+                nearest_data_point = data_point
+        return nearest_data_point
+
 
 class RayTracerWidget(QtWidgets.QWidget):
     """view for the raytracer
@@ -482,8 +579,11 @@ class RayTracerWidget(QtWidgets.QWidget):
 
         self.ray_tracer.render_resolution = QtCore.QSize(32, 32)
         self.ray_tracer.render_camera = Camera()
+        eye = QtGui.QVector3D(2, 5, 0.8)
+        eye = QtGui.QVector3D(2, 2, 0.8)
+
         self.ray_tracer.render_camera.matrix.lookAt(
-            QtGui.QVector3D(2, 2, 0.8), QtGui.QVector3D(),
+            eye, QtGui.QVector3D(),
             QtGui.QVector3D(0, 1, 0))
         self.light = PointLight()
         self.light.name = "p1"
@@ -498,12 +598,16 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.ray_tracer.objects.append(self.light)
 
         self.cube = Cube()
+        self.cube.object_color = QtGui.QVector3D(0.2, 0.8, 0.3)
+        self.cube.name = "center"
         self.cube.matrix.translate(0, 0, 0)
         self.ray_tracer.objects.append(self.cube)
 
         self.cube2 = Cube()
+        self.cube2.name = "floor"
         self.cube2.matrix.scale(6.0, 0.2, 6.0)
         self.cube2.matrix.translate(0, -3.0, 0)
+        self.cube2.object_color = QtGui.QVector3D(0.8, 0.3, 0.2)
         self.cube2.calculate()
         self.ray_tracer.objects.append(self.cube2)
 
@@ -519,6 +623,7 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.timer.start()
 
         self.show_viewport = True
+        self.rays_to_paints = []
 
     def tick(self):
         if self.render:
@@ -529,6 +634,9 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.update()
 
     def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Backspace:
+            self.ray_tracer.setup_output_data()
+            self.update()
         if event.key() == QtCore.Qt.Key_H:
             self.show_viewport = not self.show_viewport
             self.update()
@@ -538,6 +646,10 @@ class RayTracerWidget(QtWidgets.QWidget):
             self.update()
 
         if event.key() == QtCore.Qt.Key_R:
+            self.ray_tracer.enabled_reflections = not self.ray_tracer.enabled_reflections
+            self.update()
+
+        if event.key() == QtCore.Qt.Key_Space:
             self.render = not self.render
 
         if event.key() == QtCore.Qt.Key_Up:
@@ -630,12 +742,12 @@ class RayTracerWidget(QtWidgets.QWidget):
             self.paint_vertex(painter,
                               self.multiply_matrix(v, geometry.matrix))
 
-        self.paint_aabb(painter, geometry.aabb_worldspace)
+        self.paint_boundingbox(painter, geometry.boundingbox_worldspace)
         self.paint_pivot(painter, geometry.matrix)
 
-    def paint_aabb(self, painter, aabb):
-        p2_device = self.world_to_device(aabb.min)
-        p1_device = self.world_to_device(aabb.max)
+    def paint_boundingbox(self, painter, boundingbox):
+        p2_device = self.world_to_device(boundingbox.min)
+        p1_device = self.world_to_device(boundingbox.max)
 
         painter.setPen(QtGui.QPen(QtGui.QColor(255, 0, 255)))
         painter.drawLine(p1_device, p2_device)
@@ -680,7 +792,12 @@ class RayTracerWidget(QtWidgets.QWidget):
         rays = self.ray_tracer.render_resolution.width() * self.ray_tracer.render_resolution.height()
         info = "Raytracer | {:.2f} fps | {} rays".format(self.ray_tracer.fps,
                                                          rays)
+
         painter.drawText(20, 20, info)
+        info = "Rendering: {} | Shadows: {} | Reflections {}".format(
+            self.render, self.ray_tracer.enabled_shadows,
+            self.ray_tracer.enabled_reflections)
+        painter.drawText(20, 40, info)
         if self.show_viewport:
             for obj in self.ray_tracer.objects:
                 if isinstance(obj, Geometry):
@@ -690,8 +807,43 @@ class RayTracerWidget(QtWidgets.QWidget):
                 elif isinstance(obj, PointLight):
                     self.paint_light(painter, obj)
 
+            for ray in self.rays_to_paints:
+                self.paint_ray(painter, ray, 20)
+
+    def paint_ray(self, painter, ray, length=1.0):
+        self.paint_line(painter, ray.pos, ray.pos + ray.direction * length)
+
     def sizeHint(self, *args, **kwargs):
         return QtCore.QSize(300, 300)
+
+    def mousePressEvent(self, event):
+        self.rays_to_paints = []
+        screen_pos = self.device_to_screen(event.pos())
+        ray = self.ray_tracer.screen_to_ray(screen_pos)
+        self.rays_to_paints.append(ray)
+        data = self.ray_tracer.intersected_geometries(ray)
+        data = self.ray_tracer.get_nearest_data_point(ray.pos, data)
+
+        if data:
+            world_tri = data.world_tri
+            normal = self.ray_tracer.calculate_normal(world_tri.vertex0, world_tri.vertex1, world_tri.vertex2)
+            print "-"
+            print ray.direction
+            print data.geometry.name
+
+            # print normal
+            refl_direction = self.ray_tracer.reflect_vector(ray.direction.normalized(), normal)
+            print refl_direction
+            # print refl_direction.normalized()
+            refl_ray = Ray()
+            refl_ray.direction = refl_direction
+            refl_ray.pos = QtGui.QVector3D(data.pos)
+            self.rays_to_paints.append(refl_ray)
+
+            refl_data = self.ray_tracer.intersected_geometry(refl_ray)
+            if refl_data:
+                print "reflection"
+                print refl_data
 
 
 def main():
