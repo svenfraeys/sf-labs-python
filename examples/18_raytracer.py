@@ -175,6 +175,7 @@ class RayTracer(object):
         self.vp = QtGui.QMatrix4x4()
         self.vp_inverted = QtGui.QMatrix4x4()
         self.rays = []
+        self.enabled_shadows = True
 
     @property
     def render_resolution(self):
@@ -324,14 +325,16 @@ class RayTracer(object):
             diff = max([QtGui.QVector3D.dotProduct(tri.normal, lightdir), 0.0])
 
             # shadows
-            light_ray = (light.position() - pos)
-            light_ray.normalized()
-            ray = Ray(pos, light_ray)
-            intersected_pos = self.intersected_geometry(ray, ignore_geo=[geometry])
-            if intersected_pos:
-                # v = intersected_pos - pos
-                # v.normalize()
-                diff /= 2
+            if self.enabled_shadows:
+                light_ray = (light.position() - pos)
+                light_ray.normalized()
+                ray = Ray(pos, light_ray)
+                intersected_pos = self.intersected_geometry(ray,
+                                                            ignore_geo=[geometry])
+                if intersected_pos:
+                    # v = intersected_pos - pos
+                    # v.normalize()
+                    diff /= 2
 
             diffuse = diff * light.color
             ambient_diffuse += ambient + diffuse
@@ -515,18 +518,12 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.timer.timeout.connect(self.tick)
         self.timer.start()
 
-        self.render_timer = QtCore.QTimer()
-        self.render_timer.setInterval(int(100.0 / 1.0))
-        self.render_timer.timeout.connect(self.render_tick)
-        self.render_timer.start()
-
         self.show_viewport = True
 
-    def render_tick(self):
+    def tick(self):
         if self.render:
             self.ray_tracer.render()
 
-    def tick(self):
         self.cube.matrix.rotate(1, QtGui.QVector3D(0, 1, 0))
         self.cube.calculate()
         self.update()
@@ -534,6 +531,10 @@ class RayTracerWidget(QtWidgets.QWidget):
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_H:
             self.show_viewport = not self.show_viewport
+            self.update()
+
+        if event.key() == QtCore.Qt.Key_S:
+            self.ray_tracer.enabled_shadows = not self.ray_tracer.enabled_shadows
             self.update()
 
         if event.key() == QtCore.Qt.Key_R:
