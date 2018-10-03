@@ -11,7 +11,9 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ## Raytracer
 
-![alt text](images/raytracer.gif "Rasterization")
+![alt text](images/raytracer_shadows.png "ray tracer shadows")
+
+![alt text](images/raytracer.gif "raytracer basic cube")
 
 ## Rasterization
 
