@@ -33,15 +33,21 @@ class PointLight(object):
     def __init__(self):
         self.matrix = QtGui.QMatrix4x4()
         self.color = np.array([1, 1, 1])
+        self.name = "pointLight"
 
     def position(self):
         return QtGui.QVector3D(self.matrix.column(3))
 
 
 class Ray(object):
-    def __init__(self):
-        self.pos = QtGui.QMatrix4x4()
-        self.direction = QtGui.QVector3D()
+    def __init__(self, pos=None, direction=None):
+        if not pos:
+            pos = QtGui.QVector3D()
+        self.pos = pos
+
+        if not direction:
+            direction = QtGui.QVector3D()
+        self.direction = direction
 
 
 class Camera(object):
@@ -300,6 +306,9 @@ class RayTracer(object):
         else:
             return None
 
+    def nparray_to_vector3D(self, array):
+        return QtGui.QVector3D(array[0], array[1], array[2])
+
     def render_tri(self, geometry, tri, pos, color):
         object_color = geometry.object_color
 
@@ -313,6 +322,17 @@ class RayTracer(object):
             lightdir = (light.position() - pos).normalized()
 
             diff = max([QtGui.QVector3D.dotProduct(tri.normal, lightdir), 0.0])
+
+            # shadows
+            light_ray = (light.position() - pos)
+            light_ray.normalized()
+            ray = Ray(pos, light_ray)
+            intersected_pos = self.intersected_geometry(ray, ignore_geo=[geometry])
+            if intersected_pos:
+                # v = intersected_pos - pos
+                # v.normalize()
+                diff /= 2
+
             diffuse = diff * light.color
             ambient_diffuse += ambient + diffuse
 
@@ -330,6 +350,22 @@ class RayTracer(object):
         pos = self.screen_to_world(QtGui.QVector3D(x, y, z))
         self._screen_to_world_cache[key] = pos
         return pos
+
+    def intersected_geometry(self, ray, ignore_geo=None):
+        for obj in self.objects:
+            if isinstance(obj, Geometry):
+                if obj in ignore_geo:
+                    continue
+
+                if not self.intersect_aabb(obj.aabb_worldspace, ray):
+                    continue
+
+                for tri in obj.tris:
+                    tri = tri * obj.matrix
+                    pos = self.intersect_triangle(ray, tri)
+                    if pos:
+                        return pos
+        return None
 
     def render_pixel(self, ray, color):
         hitting_tris = {}
@@ -444,21 +480,30 @@ class RayTracerWidget(QtWidgets.QWidget):
         self.ray_tracer.render_resolution = QtCore.QSize(32, 32)
         self.ray_tracer.render_camera = Camera()
         self.ray_tracer.render_camera.matrix.lookAt(
-            QtGui.QVector3D(1, 1, 0.8), QtGui.QVector3D(),
+            QtGui.QVector3D(2, 2, 0.8), QtGui.QVector3D(),
             QtGui.QVector3D(0, 1, 0))
         self.light = PointLight()
-        self.light.matrix.translate(2, 2, 0)
+        self.light.name = "p1"
+        self.light.matrix.translate(2, 2, -2)
         self.light.color = QtGui.QVector3D(1.0, 0.64, 0.18)
         self.ray_tracer.objects.append(self.light)
 
         self.light = PointLight()
-        self.light.matrix.translate(2, -2, 2)
+        self.light.name = "p2"
+        self.light.matrix.translate(-2, 5, 0)
         self.light.color = QtGui.QVector3D(0.368, 156.0 / 255.0, 242.0 / 255.0)
         self.ray_tracer.objects.append(self.light)
 
         self.cube = Cube()
         self.cube.matrix.translate(0, 0, 0)
         self.ray_tracer.objects.append(self.cube)
+
+        self.cube2 = Cube()
+        self.cube2.matrix.scale(6.0, 0.2, 6.0)
+        self.cube2.matrix.translate(0, -3.0, 0)
+        self.cube2.calculate()
+        self.ray_tracer.objects.append(self.cube2)
+
         self.ray_tracer.calculate_matrices()
         self.ray_tracer.calculate_rays()
         self.ray_tracer.setup_output_data()
@@ -622,6 +667,7 @@ class RayTracerWidget(QtWidgets.QWidget):
         position = QtGui.QVector3D(obj.matrix.column(3))
         pos_device = self.world_to_device(position)
         painter.drawEllipse(pos_device.x(), pos_device.y(), 20, 20)
+        painter.drawText(pos_device.x(), pos_device.y() - 15, str(obj.name))
 
     def paintEvent(self, event):
 
