@@ -9,7 +9,7 @@ import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 DEBUG = True
-REFLECTION_RERENDER_PIXEL = False
+
 PROFILE = False
 DIMENSIONS = [0, 1, 2]
 
@@ -378,8 +378,7 @@ class RayTracer(object):
 
         ambient_diffuse = QtGui.QVector3D()
 
-        lights = self.__lights
-        for light in lights:
+        for light in self.__lights:
             ambient_strength = 0.2
             ambient = light.color * ambient_strength
 
@@ -411,7 +410,7 @@ class RayTracer(object):
                                            tri.world_v1,
                                            tri.world_v2)
             refl_direction = self.reflect_vector(ray.direction.normalized(),
-                                                 normal * -1)
+                                                 normal)
 
             reflection_ray = Ray(pos, refl_direction)
 
@@ -426,12 +425,10 @@ class RayTracer(object):
                 refl_color = [0.0, 0.0, 0.0]
                 screen_pos = self.world_to_screen(refl_data.pos)
                 relf_ray = self.screen_to_ray(screen_pos)
-                if REFLECTION_RERENDER_PIXEL:
-                    self.render_pixel(relf_ray, refl_color)
-                else:
-                    self.render_tri(refl_data.geometry, refl_data.tri,
-                                    refl_data.pos, refl_color, relf_ray,
-                                    reflections=False)
+
+                self.render_tri(refl_data.geometry, refl_data.tri,
+                                refl_data.pos, refl_color, relf_ray,
+                                reflections=False)
                 relf_c = QtGui.QVector3D(refl_color[0], refl_color[1],
                                          refl_color[2])
                 object_color = QtGui.QVector3D(object_color)
