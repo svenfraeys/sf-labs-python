@@ -1,5 +1,7 @@
 """ray tracer
 """
+import cProfile, pstats, StringIO
+
 import numpy as np
 import time
 
@@ -8,6 +10,13 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 DEBUG = True
 REFLECTION_RERENDER_PIXEL = False
+PROFILE = False
+DIMENSIONS = [0, 1, 2]
+
+RIGHT = 0
+LEFT = 1
+MIDDLE = 2
+EPSILON = 0.0000001
 
 
 class BoundingBox(object):
@@ -25,39 +34,60 @@ class DataPoint(object):
 
 
 class Triangle(object):
-    def __init__(self, vertex0, vertex1, vertex2, normal=None):
+    def __init__(self, geometry, vertex0, vertex1, vertex2, normal=None):
         self.vertex0 = vertex0
         self.vertex1 = vertex1
         self.vertex2 = vertex2
+        self.geometry = geometry
+        self.world_v0 = None
+        self.world_v1 = None
+        self.world_v2 = None
         if not normal:
             normal = QtGui.QVector3D()
         self.normal = normal
+
+    def calculate_world(self):
+        self.world_v0 = self.geometry.matrix * QtGui.QVector4D(self.vertex0,
+                                                               1).toVector3DAffine()
+        self.world_v1 = self.geometry.matrix * QtGui.QVector4D(self.vertex1,
+                                                               1).toVector3DAffine()
+        self.world_v2 = self.geometry.matrix * QtGui.QVector4D(self.vertex2,
+                                                               1).toVector3DAffine()
 
     def __mul__(self, other):
         v0 = other * QtGui.QVector4D(self.vertex0, 1).toVector3DAffine()
         v1 = other * QtGui.QVector4D(self.vertex1, 1).toVector3DAffine()
         v2 = other * QtGui.QVector4D(self.vertex2, 1).toVector3DAffine()
-        return Triangle(v0, v1, v2, self.normal)
+        return Triangle(self.geometry, v0, v1, v2, self.normal)
 
 
 class PointLight(object):
     def __init__(self):
-        self.matrix = QtGui.QMatrix4x4()
+        self.__matrix = QtGui.QMatrix4x4()
         self.color = np.array([1, 1, 1])
         self.name = "pointLight"
+        self.position = None
 
-    def position(self):
-        return QtGui.QVector3D(self.matrix.column(3))
+    @property
+    def matrix(self):
+        return self.__matrix
+
+    @matrix.setter
+    def matrix(self, value):
+        self.__matrix = value
+        self.position = QtGui.QVector3D(value.column(3))
+
+    def get_position(self):
+        return self.position
+
+    def translate(self, x, y, z):
+        self.__matrix.translate(x, y, z)
+        self.position = QtGui.QVector3D(self.__matrix.column(3))
 
 
 class Ray(object):
-    def __init__(self, pos=None, direction=None):
-        if not pos:
-            pos = QtGui.QVector3D()
+    def __init__(self, pos, direction):
         self.pos = pos
-
-        if not direction:
-            direction = QtGui.QVector3D()
         self.direction = direction
 
 
@@ -112,6 +142,10 @@ class Geometry(object):
             if v.z() > max_.z():
                 max_.setZ(v.z())
         self.__boundingbox_worldspace = BoundingBox(min_, max_)
+
+        for tri in self.tris:
+            tri.calculate_world()
+
 
     @property
     def boundingbox_worldspace(self):
@@ -168,7 +202,8 @@ class Cube(Geometry):
 
             self.verts += [p0, p1, p2]
             n = RayTracer.calculate_normal(p0, p1, p2)
-            t = Triangle(p0, p1, p2, n)
+            t = Triangle(self, p0, p1, p2, n)
+            t.calculate_world()
             self.tris.append(t)
 
         self.boundingbox = BoundingBox(QtGui.QVector3D(-1, -1, -1),
@@ -180,6 +215,9 @@ class RayTracer(object):
         self.is_rendering = False
         self.render_camera = Camera()
         self.objects = []
+        self.__geometries = []
+        self.__lights = []
+
         self.__render_resolution = QtCore.QSize()
         self.only_sample_nearest = True
         self.__output_data = []
@@ -190,6 +228,7 @@ class RayTracer(object):
         self.rays = []
         self.enabled_shadows = True
         self.enabled_reflections = True
+        self.__total_lights = 0
 
     def remove_matrix_translation(self, matrix):
         matrix = QtGui.QMatrix4x4(matrix)
@@ -210,11 +249,7 @@ class RayTracer(object):
         return (matrix * QtGui.QVector4D(v, 1)).toVector3DAffine()
 
     def get_lights(self):
-        lights = []
-        for obj in self.objects:
-            if isinstance(obj, PointLight):
-                lights.append(obj)
-        return lights
+        return self.__lights
 
     def setup_output_data(self):
         self.__output_data = np.zeros((self.render_resolution.width(),
@@ -243,20 +278,16 @@ class RayTracer(object):
         """
         origin = [ray.pos.x(), ray.pos.y(), ray.pos.z()]
         dir_ = [ray.direction.x(), ray.direction.y(), ray.direction.z()]
-        RIGHT = 0
-        LEFT = 1
-        MIDDLE = 2
 
-        numdim = 3
         inside = True
-        quadrant = [-1] * 3
+        quadrant = [-1, -1, -1]
 
-        maxT = [0.0] * 3
-        candidatePlane = [0.0] * 3
+        maxT = [0.0, 0.0, 0.0]
+        candidatePlane = [0.0, 0.0, 0.0]
         minB = [bbaa.min.x(), bbaa.min.y(), bbaa.min.z()]
         maxB = [bbaa.max.x(), bbaa.max.y(), bbaa.max.z()]
 
-        for i in range(numdim):
+        for i in DIMENSIONS:
             if origin[i] < minB[i]:
                 quadrant[i] = 1
                 candidatePlane[i] = LEFT
@@ -271,22 +302,22 @@ class RayTracer(object):
         if inside:
             return QtGui.QVector3D(*origin)
 
-        for i in range(numdim):
+        for i in DIMENSIONS:
             if quadrant[i] != MIDDLE and dir_[i] != 0.0:
                 maxT[i] = (candidatePlane[i] - origin[i]) / dir_[i]
             else:
                 maxT[i] = -1.0
 
         which_plane = 0
-        for i in range(numdim):
+        for i in DIMENSIONS:
             if maxT[which_plane] < maxT[i]:
                 which_plane = i
 
         if maxT[which_plane] < 0.0:
             return None
 
-        coord = [0.0] * 3
-        for i in range(numdim):
+        coord = [0.0, 0.0, 0.0]
+        for i in DIMENSIONS:
             if which_plane != i:
                 coord[i] = origin[i] + maxT[which_plane] * dir_[i]
                 if coord[i] < minB[i] or coord[i] > maxB[i]:
@@ -297,17 +328,16 @@ class RayTracer(object):
 
     def intersect_triangle(self, ray, triangle):
         # https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
-        vertex0 = triangle.vertex0
-        vertex1 = triangle.vertex1
-        vertex2 = triangle.vertex2
+        vertex0 = triangle.world_v0
+        vertex1 = triangle.world_v1
+        vertex2 = triangle.world_v2
 
-        epsilon = 0.0000001
         edge1 = vertex1 - vertex0
         edge2 = vertex2 - vertex0
         h = QtGui.QVector3D.crossProduct(ray.direction, edge2)
         a = QtGui.QVector3D.dotProduct(edge1, h)
 
-        if -epsilon < a < epsilon:
+        if -EPSILON < a < EPSILON:
             return None
         f = 1 / a
         s = ray.pos - vertex0
@@ -321,7 +351,7 @@ class RayTracer(object):
             return None
 
         t = f * QtGui.QVector3D.dotProduct(edge2, q)
-        if t > epsilon:
+        if t > EPSILON:
             intersection_point = ray.pos + ray.direction * t
             return intersection_point
         else:
@@ -335,39 +365,38 @@ class RayTracer(object):
         return vector - (normal * 2 * dot)
 
         r = -vector - (-dot) * normal
-        return vector + 2*r
+        return vector + 2 * r
         return -2 * (
             QtGui.QVector3D.dotProduct(vector, normal) * normal) + vector
         return ((2 * QtGui.QVector3D.dotProduct(vector,
-                                               normal)) * normal) - vector
+                                                normal)) * normal) - vector
         return vector - (
             2 * QtGui.QVector3D.dotProduct(vector, normal) * normal)
-
-
-
-
 
     def render_tri(self, geometry, tri, pos, color, ray, reflections=True):
         object_color = geometry.object_color
 
         ambient_diffuse = QtGui.QVector3D()
 
-        lights = self.get_lights()
+        lights = self.__lights
         for light in lights:
             ambient_strength = 0.2
             ambient = light.color * ambient_strength
 
-            lightdir = (light.position() - pos).normalized()
+            lightdir = (light.position - pos).normalized()
 
-            diff = max([QtGui.QVector3D.dotProduct(tri.normal, lightdir), 0.0])
+            # diff = max(QtGui.QVector3D.dotProduct(tri.normal, lightdir), 0.0)
+            dot = QtGui.QVector3D.dotProduct(tri.normal, lightdir)
+            diff = dot if dot > 0 else 0.0
 
             # shadows
             if self.enabled_shadows:
-                light_ray = (light.position() - pos)
+                light_ray = (light.position - pos)
                 light_ray.normalized()
-                ray = Ray(pos, light_ray)
-                intersected_data = self.intersected_geometry(ray, ignore_geo=[
-                    geometry])
+                shadow_ray = Ray(pos, light_ray)
+                intersected_data = self.intersected_geometry(shadow_ray,
+                                                             ignore_geo=[
+                                                                 geometry])
                 if intersected_data:
                     # v = intersected_pos - pos
                     # v.normalize()
@@ -377,21 +406,23 @@ class RayTracer(object):
             ambient_diffuse += ambient + diffuse
 
         if self.enabled_reflections and reflections:
-            reflection_ray = Ray()
-            world_tri = tri * geometry.matrix
-            normal = self.calculate_normal(world_tri.vertex0,
-                                                      world_tri.vertex1,
-                                                      world_tri.vertex2)
-            refl_direction = self.reflect_vector(ray.direction.normalized(), normal * -1)
-            reflection_ray.direction = refl_direction
-            reflection_ray.pos = pos
+
+            normal = self.calculate_normal(tri.world_v0,
+                                           tri.world_v1,
+                                           tri.world_v2)
+            refl_direction = self.reflect_vector(ray.direction.normalized(),
+                                                 normal * -1)
+
+            reflection_ray = Ray(pos, refl_direction)
+
             refl_data = self.intersected_geometries(reflection_ray,
-                                                  ignore_tri=[tri],
-                                                  ignore_geo=[geometry])
+                                                    ignore_tri=[tri],
+                                                    ignore_geo=[geometry])
 
-            refl_data = self.get_nearest_data_point(reflection_ray.pos, refl_data)
+            refl_data = self.get_nearest_data_point(reflection_ray.pos,
+                                                    refl_data)
 
-            if refl_data and refl_data.tri != tri:
+            if refl_data:
                 refl_color = [0.0, 0.0, 0.0]
                 screen_pos = self.world_to_screen(refl_data.pos)
                 relf_ray = self.screen_to_ray(screen_pos)
@@ -403,13 +434,20 @@ class RayTracer(object):
                                     reflections=False)
                 relf_c = QtGui.QVector3D(refl_color[0], refl_color[1],
                                          refl_color[2])
-                object_color = relf_c
+                object_color = QtGui.QVector3D(object_color)
+                object_color += relf_c
+                self.clamp_color_vector(object_color)
 
-        ambient_diffuse /= len(lights)
+        ambient_diffuse /= self.__total_lights
         color_out = ambient_diffuse * object_color
         color[0] = color_out.x()
         color[1] = color_out.y()
         color[2] = color_out.z()
+
+    def clamp_color_vector(self, v):
+        v.setX(v.x() if v.x() < 1.0 else 1.0)
+        v.setY(v.y() if v.y() < 1.0 else 1.0)
+        v.setZ(v.z() if v.z() < 1.0 else 1.0)
 
     def screen_to_world_cache(self, x, y, z):
         key = "{}-{}-{}".format(x, y, z)
@@ -422,7 +460,7 @@ class RayTracer(object):
 
     def intersected_geometry(self, ray, ignore_geo=None, ignore_tri=None):
         res = self.intersected_geometries(ray, ignore_geo=ignore_geo,
-                                           ignore_tri=ignore_tri, first=True)
+                                          ignore_tri=ignore_tri, first=True)
         if res:
             return res[0]
         else:
@@ -431,43 +469,39 @@ class RayTracer(object):
     def intersected_geometries(self, ray, ignore_geo=None, ignore_tri=None,
                                first=False):
         data_list = []
-        for obj in self.objects:
-            if isinstance(obj, Geometry):
-                if ignore_geo and obj in ignore_geo:
-                    continue
+        for obj in self.__geometries:
+            if ignore_geo and obj in ignore_geo:
+                continue
 
-                if not self.intersect_boundingbox(obj.boundingbox_worldspace,
-                                                  ray):
-                    continue
+            if not self.intersect_boundingbox(obj.boundingbox_worldspace,
+                                              ray):
+                continue
 
-                for tri in obj.tris:
-                    if ignore_tri and tri in ignore_tri:
-                        continue
-                    # put the triangle in world space
-                    world_tri = tri * obj.matrix
-                    pos = self.intersect_triangle(ray, world_tri)
-                    if pos:
-                        data = DataPoint(pos=pos, tri=tri, geometry=obj, world_tri=world_tri)
-                        data_list.append(data)
-                        if first:
-                            return data_list
+            for tri in obj.tris:
+                if ignore_tri and tri in ignore_tri:
+                    continue
+                # put the triangle in world space
+                pos = self.intersect_triangle(ray, tri)
+                if pos is not None:
+                    data = DataPoint(pos=pos, tri=tri, geometry=obj)
+                    data_list.append(data)
+                    if first is True:
+                        return data_list
         return data_list
 
     def render_pixel(self, ray, color):
         hitting_tris = {}
         hit_geo = False
-        for obj in self.objects:
-            if isinstance(obj, Geometry):
-                if not self.intersect_boundingbox(obj.boundingbox_worldspace,
-                                                  ray):
-                    continue
-                for tri in obj.tris:
-                    tri = tri * obj.matrix
-                    pos = self.intersect_triangle(ray, tri)
-                    if pos:
-                        hit_geo = True
-                        distance = (pos - ray.pos).length()
-                        hitting_tris[distance] = (obj, tri, pos)
+        for obj in self.__geometries:
+            if not self.intersect_boundingbox(obj.boundingbox_worldspace,
+                                              ray):
+                continue
+            for tri in obj.tris:
+                pos = self.intersect_triangle(ray, tri)
+                if pos:
+                    hit_geo = True
+                    distance = (pos - ray.pos).length()
+                    hitting_tris[distance] = (obj, tri, pos)
         if not hit_geo:
             color[0] = 0.3
             color[1] = 0.3
@@ -497,9 +531,7 @@ class RayTracer(object):
         far = self.screen_to_world_cache(screen_pos.x(), screen_pos.y(), -1)
         near = self.screen_to_world_cache(screen_pos.x(), screen_pos.y(), 1)
         direction = (far - near).normalized()
-        ray = Ray()
-        ray.direction = direction
-        ray.pos = near
+        ray = Ray(near, direction)
         return ray
 
     def calculate_rays(self):
@@ -522,10 +554,30 @@ class RayTracer(object):
         self.rays = rays
 
     def render(self):
+        pr = None
+        if PROFILE:
+            pr = cProfile.Profile()
+            pr.enable()  # start profiling
+
         self.is_rendering = True
         start = time.time()
         width = self.render_resolution.width()
         height = self.render_resolution.height()
+
+        # index objects
+        self.__geometries = []
+        for obj in self.objects:
+            if isinstance(obj, Geometry):
+                self.__geometries.append(obj)
+            elif isinstance(obj, PointLight):
+                self.__lights.append(obj)
+
+        self.__total_lights = len(self.__lights)
+
+        # calculate world tris
+        for obj in self.__geometries:
+            for tri in obj.tris:
+                tri.calculate_world()
 
         for y, col in enumerate(self.__output_data):
             for x, color in enumerate(col):
@@ -550,6 +602,14 @@ class RayTracer(object):
         # self.output_data = output_image
         self.fps = 1.0 / float(time.time() - start)
         self.is_rendering = False
+
+        if PROFILE and pr:
+            pr.disable()  # end profiling
+            s = StringIO.StringIO()
+            sortby = 'cumulative'
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print s.getvalue()
 
     @property
     def output_data(self):
@@ -587,13 +647,13 @@ class RayTracerWidget(QtWidgets.QWidget):
             QtGui.QVector3D(0, 1, 0))
         self.light = PointLight()
         self.light.name = "p1"
-        self.light.matrix.translate(2, 2, -2)
+        self.light.translate(2, 2, -2)
         self.light.color = QtGui.QVector3D(1.0, 0.64, 0.18)
         self.ray_tracer.objects.append(self.light)
 
         self.light = PointLight()
         self.light.name = "p2"
-        self.light.matrix.translate(-2, 5, 0)
+        self.light.translate(-2, 5, 0)
         self.light.color = QtGui.QVector3D(0.368, 156.0 / 255.0, 242.0 / 255.0)
         self.ray_tracer.objects.append(self.light)
 
@@ -711,9 +771,9 @@ class RayTracerWidget(QtWidgets.QWidget):
 
     def paint_triangle(self, painter, triangle, geometry):
         painter.setPen(QtGui.QPen(QtGui.QColor(20, 20, 20)))
-        v0_device = self.world_to_device(triangle.vertex0)
-        v1_device = self.world_to_device(triangle.vertex1)
-        v2_device = self.world_to_device(triangle.vertex2)
+        v0_device = self.world_to_device(triangle.world_v0)
+        v1_device = self.world_to_device(triangle.world_v1)
+        v2_device = self.world_to_device(triangle.world_v2)
         painter.drawLine(v0_device.x(), v0_device.y(), v1_device.x(),
                          v1_device.y())
         painter.drawLine(v1_device.x(), v1_device.y(), v2_device.x(),
@@ -736,7 +796,7 @@ class RayTracerWidget(QtWidgets.QWidget):
 
     def paint_geometry(self, painter, geometry):
         for t in geometry.tris:
-            self.paint_triangle(painter, t * geometry.matrix, geometry)
+            self.paint_triangle(painter, t, geometry)
 
         for v in geometry.verts:
             self.paint_vertex(painter,
@@ -825,19 +885,19 @@ class RayTracerWidget(QtWidgets.QWidget):
         data = self.ray_tracer.get_nearest_data_point(ray.pos, data)
 
         if data:
-            world_tri = data.world_tri
-            normal = self.ray_tracer.calculate_normal(world_tri.vertex0, world_tri.vertex1, world_tri.vertex2)
+            normal = self.ray_tracer.calculate_normal(data.tri.world_v0,
+                                                      data.tri.world_v1,
+                                                      data.tri.world_v2)
             print "-"
             print ray.direction
             print data.geometry.name
 
             # print normal
-            refl_direction = self.ray_tracer.reflect_vector(ray.direction.normalized(), normal)
+            refl_direction = self.ray_tracer.reflect_vector(
+                ray.direction.normalized(), normal)
             print refl_direction
             # print refl_direction.normalized()
-            refl_ray = Ray()
-            refl_ray.direction = refl_direction
-            refl_ray.pos = QtGui.QVector3D(data.pos)
+            refl_ray = Ray(QtGui.QVector3D(data.pos), refl_direction)
             self.rays_to_paints.append(refl_ray)
 
             refl_data = self.ray_tracer.intersected_geometry(refl_ray)
