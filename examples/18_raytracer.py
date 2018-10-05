@@ -277,12 +277,10 @@ class RayTracer(object):
         """check if a point intersects a bbaa
         """
         origin = [ray.pos.x(), ray.pos.y(), ray.pos.z()]
-        dir_ = [ray.direction.x(), ray.direction.y(), ray.direction.z()]
 
         inside = True
         quadrant = [-1, -1, -1]
 
-        maxT = [0.0, 0.0, 0.0]
         candidatePlane = [0.0, 0.0, 0.0]
         minB = [bbaa.min.x(), bbaa.min.y(), bbaa.min.z()]
         maxB = [bbaa.max.x(), bbaa.max.y(), bbaa.max.z()]
@@ -299,8 +297,11 @@ class RayTracer(object):
             else:
                 quadrant[i] = MIDDLE
 
-        if inside:
+        if inside is True:
             return QtGui.QVector3D(*origin)
+
+        maxT = [0.0, 0.0, 0.0]
+        dir_ = [ray.direction.x(), ray.direction.y(), ray.direction.z()]
 
         for i in DIMENSIONS:
             if quadrant[i] != MIDDLE and dir_[i] != 0.0:
@@ -389,23 +390,22 @@ class RayTracer(object):
             diff = dot if dot > 0 else 0.0
 
             # shadows
-            if self.enabled_shadows:
-                light_ray = (light.position - pos)
-                light_ray.normalized()
-                shadow_ray = Ray(pos, light_ray)
-                intersected_data = self.intersected_geometry(shadow_ray,
-                                                             ignore_geo=[
-                                                                 geometry])
-                if intersected_data:
-                    # v = intersected_pos - pos
-                    # v.normalize()
-                    diff /= 2
+
+            light_ray = (light.position - pos)
+            light_ray.normalized()
+            shadow_ray = Ray(pos, light_ray)
+            intersected_data = self.intersected_geometry(shadow_ray,
+                                                         ignore_geo=[
+                                                             geometry])
+            if intersected_data is not None:
+                # v = intersected_pos - pos
+                # v.normalize()
+                diff /= 2
 
             diffuse = diff * light.color
             ambient_diffuse += ambient + diffuse
 
-        if self.enabled_reflections and reflections:
-
+        if reflections is True:
             normal = self.calculate_normal(tri.world_v0,
                                            tri.world_v1,
                                            tri.world_v2)
@@ -421,7 +421,7 @@ class RayTracer(object):
             refl_data = self.get_nearest_data_point(reflection_ray.pos,
                                                     refl_data)
 
-            if refl_data:
+            if refl_data is not None:
                 refl_color = [0.0, 0.0, 0.0]
                 screen_pos = self.world_to_screen(refl_data.pos)
                 relf_ray = self.screen_to_ray(screen_pos)
@@ -467,7 +467,7 @@ class RayTracer(object):
                                first=False):
         data_list = []
         for obj in self.__geometries:
-            if ignore_geo and obj in ignore_geo:
+            if ignore_geo is not None and obj in ignore_geo:
                 continue
 
             if not self.intersect_boundingbox(obj.boundingbox_worldspace,
@@ -475,7 +475,7 @@ class RayTracer(object):
                 continue
 
             for tri in obj.tris:
-                if ignore_tri and tri in ignore_tri:
+                if ignore_tri is not None and tri in ignore_tri:
                     continue
                 # put the triangle in world space
                 pos = self.intersect_triangle(ray, tri)
@@ -495,7 +495,7 @@ class RayTracer(object):
                 continue
             for tri in obj.tris:
                 pos = self.intersect_triangle(ray, tri)
-                if pos:
+                if pos is not None:
                     hit_geo = True
                     distance = (pos - ray.pos).length()
                     hitting_tris[distance] = (obj, tri, pos)
@@ -550,17 +550,7 @@ class RayTracer(object):
                 row.append(ray)
         self.rays = rays
 
-    def render(self):
-        pr = None
-        if PROFILE:
-            pr = cProfile.Profile()
-            pr.enable()  # start profiling
-
-        self.is_rendering = True
-        start = time.time()
-        width = self.render_resolution.width()
-        height = self.render_resolution.height()
-
+    def start(self):
         # index objects
         self.__geometries = []
         for obj in self.objects:
@@ -570,6 +560,15 @@ class RayTracer(object):
                 self.__lights.append(obj)
 
         self.__total_lights = len(self.__lights)
+
+    def render(self):
+        pr = None
+        if PROFILE:
+            pr = cProfile.Profile()
+            pr.enable()  # start profiling
+
+        self.is_rendering = True
+        start = time.time()
 
         # calculate world tris
         for obj in self.__geometries:
@@ -606,7 +605,7 @@ class RayTracer(object):
             sortby = 'cumulative'
             ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
             ps.print_stats()
-            print s.getvalue()
+            print(s.getvalue())
 
     @property
     def output_data(self):
@@ -708,6 +707,8 @@ class RayTracerWidget(QtWidgets.QWidget):
 
         if event.key() == QtCore.Qt.Key_Space:
             self.render = not self.render
+            if self.render:
+                self.ray_tracer.start()
 
         if event.key() == QtCore.Qt.Key_Up:
             self.ray_tracer.render_resolution *= 2
