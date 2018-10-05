@@ -19,6 +19,20 @@ MIDDLE = 2
 EPSILON = 0.0000001
 
 
+def profile_it(func):
+    def wrapped(*args, **kwargs):
+        pr = cProfile.Profile()
+        pr.enable()  # start profiling
+        res = func(*args, **kwargs)
+        pr.disable()  # end profiling
+        s = StringIO.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        return res
+    return wrapped
+
+
 class BoundingBox(object):
     def __init__(self, min_, max_):
         self.min = min_
@@ -397,7 +411,7 @@ class RayTracer(object):
             intersected_data = self.intersected_geometry(shadow_ray,
                                                          ignore_geo=[
                                                              geometry])
-            if intersected_data is not None:
+            if intersected_data:
                 # v = intersected_pos - pos
                 # v.normalize()
                 diff /= 2
@@ -421,7 +435,7 @@ class RayTracer(object):
             refl_data = self.get_nearest_data_point(reflection_ray.pos,
                                                     refl_data)
 
-            if refl_data is not None:
+            if refl_data:
                 refl_color = [0.0, 0.0, 0.0]
                 screen_pos = self.world_to_screen(refl_data.pos)
                 relf_ray = self.screen_to_ray(screen_pos)
@@ -467,7 +481,7 @@ class RayTracer(object):
                                first=False):
         data_list = []
         for obj in self.__geometries:
-            if ignore_geo is not None and obj in ignore_geo:
+            if ignore_geo and obj in ignore_geo:
                 continue
 
             if not self.intersect_boundingbox(obj.boundingbox_worldspace,
@@ -475,11 +489,11 @@ class RayTracer(object):
                 continue
 
             for tri in obj.tris:
-                if ignore_tri is not None and tri in ignore_tri:
+                if ignore_tri and tri in ignore_tri:
                     continue
                 # put the triangle in world space
                 pos = self.intersect_triangle(ray, tri)
-                if pos is not None:
+                if pos:
                     data = DataPoint(pos=pos, tri=tri, geometry=obj)
                     data_list.append(data)
                     if first is True:
@@ -495,7 +509,7 @@ class RayTracer(object):
                 continue
             for tri in obj.tris:
                 pos = self.intersect_triangle(ray, tri)
-                if pos is not None:
+                if pos:
                     hit_geo = True
                     distance = (pos - ray.pos).length()
                     hitting_tris[distance] = (obj, tri, pos)
@@ -505,28 +519,17 @@ class RayTracer(object):
             color[2] = 0.3
             return
 
+
         keys = hitting_tris.keys()
 
-        if keys:
-            keys.sort()
-            if self.only_sample_nearest:
-                k = keys[0]
-                geometry, tri, pos = hitting_tris[k]
-                self.render_tri(geometry, tri, pos, color, ray)
-                return
-            else:
-                for k in reversed(keys):
-                    geometry, tri, pos = hitting_tris[k]
-                    self.render_tri(geometry, tri, pos, color, ray)
-                return
-
-        color[0] = 0.3
-        color[1] = 0.3
-        color[2] = 0.3
+        k = keys[0]
+        geometry, tri, pos = hitting_tris[k]
+        self.render_tri(geometry, tri, pos, color, ray)
+        return
 
     def screen_to_ray(self, screen_pos):
-        far = self.screen_to_world_cache(screen_pos.x(), screen_pos.y(), -1)
-        near = self.screen_to_world_cache(screen_pos.x(), screen_pos.y(), 1)
+        far = self.screen_to_world(QtGui.QVector3D(screen_pos.x(), screen_pos.y(), -1))
+        near = self.screen_to_world(QtGui.QVector3D(screen_pos.x(), screen_pos.y(), 1))
         direction = (far - near).normalized()
         ray = Ray(near, direction)
         return ray
@@ -562,10 +565,6 @@ class RayTracer(object):
         self.__total_lights = len(self.__lights)
 
     def render(self):
-        pr = None
-        if PROFILE:
-            pr = cProfile.Profile()
-            pr.enable()  # start profiling
 
         self.is_rendering = True
         start = time.time()
@@ -598,14 +597,6 @@ class RayTracer(object):
         # self.output_data = output_image
         self.fps = 1.0 / float(time.time() - start)
         self.is_rendering = False
-
-        if PROFILE and pr:
-            pr.disable()  # end profiling
-            s = StringIO.StringIO()
-            sortby = 'cumulative'
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print(s.getvalue())
 
     @property
     def output_data(self):
