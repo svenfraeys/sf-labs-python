@@ -3,21 +3,22 @@
 Collections of Custom Widgets and Experiments made in Python for PySide2
 
 
+## Raytracer
+
+![alt text](images/raytracer_shadows_reflection.png "ray tracer shadows")
+
+![alt text](images/raytracer.gif "raytracer basic cube")
+
+
 ## Marching Squares
 
 ![alt text](images/marchingsquares.gif "Marching Squares")
 
 ![alt text](images/marchingsquares_particles.gif "Marching Squares Particles")
 
-## Raytracer
+## Shadow Volumes
 
-![alt text](images/raytracer_shadows.png "ray tracer shadows")
-
-![alt text](images/raytracer.gif "raytracer basic cube")
-
-## Rasterization
-
-![alt text](images/rasterization.gif "Rasterization")
+![alt text](images/shadow_volumes.gif "Rasterization")
 
 ## Quadtree
 
@@ -61,6 +62,11 @@ LSystem adjusted for tree generation.
 ## Fibonacci Golden Ratio
 
 ![alt text](images/fibonacci_golden_ratio.gif "Fobnacci Golden Ratio")
+
+## Rasterization
+
+![alt text](images/rasterization.gif "Rasterization")
+
 
 ## Slider2DWidget
 
