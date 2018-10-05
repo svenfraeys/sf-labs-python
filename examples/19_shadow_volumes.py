@@ -110,7 +110,7 @@ class VolumeRays:
         paint_vert(painter, min_far)
         paint_vert(painter, max_far)
 
-        fill_path(painter, [min_v, min_far, max_far, max_v], QtGui.QColor(20, 20, 20))
+        fill_path(painter, [min_v, min_far, max_far, max_v], QtGui.QColor(30,30,30))
 
         for v in self.geometry.verts:
             v0 = self.light.pos
@@ -156,7 +156,7 @@ class Line:
 class Circle:
     def __init__(self):
         self.pos = QtGui.QVector2D()
-        self.radius = 50
+        self.radius = 20
         self.segments = 20
         self.verts = []
 
@@ -175,13 +175,14 @@ class Circle:
         fill_path(painter, self.verts, QtGui.QColor())
 
 
-class VolumeLightsDemoWidget(QtWidgets.QWidget):
+class ShadowVolumesDemoWidget(QtWidgets.QWidget):
     """volume light demo
     """
 
     def __init__(self):
-        super(VolumeLightsDemoWidget, self).__init__()
-        self.resize(QtCore.QSize(200, 200))
+        super(ShadowVolumesDemoWidget, self).__init__()
+        self.setWindowTitle('Shadow Volumes')
+        self.resize(QtCore.QSize(300, 300))
         self.light = Light()
         self.light.set_xy(self.width() / 3, self.height() / 2)
 
@@ -193,31 +194,30 @@ class VolumeLightsDemoWidget(QtWidgets.QWidget):
         self.line.v1.setY((self.height() / 3) * 2.0)
 
         # self.volume_rays = VolumeRays(self.light, self.circle)
+        self.circles = []
+        self.volume_rays = []
+        for i in range(50):
+            x = random.random() * self.width()
+            y = random.random() * self.height()
+            circle = Circle()
+            circle.pos.setX(x)
+            circle.pos.setY(y)
+            circle.generate_verts()
+            self.circles.append(circle)
 
-        self.circle = Circle()
-        self.circle.pos.setX(self.width() / 3 * 2)
-        self.circle.pos.setY(self.height() / 2)
-        self.circle.generate_verts()
-        self.volume_rays = VolumeRays(self.light, self.circle)
-
-        self.circle2 = Circle()
-        self.circle2.pos.setX(self.width() / 3)
-        self.circle2.pos.setY(self.height() / 3 * 2)
-        self.circle2.generate_verts()
-        self.volume_rays2 = VolumeRays(self.light, self.circle2)
-
-        self.volume_rays_line = VolumeRays(self.light, self.line)
+            volume_ray = VolumeRays(self.light, circle)
+            self.volume_rays.append(volume_ray)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.fillRect(self.rect(), QtGui.QColor(50, 50, 50))
 
-        self.volume_rays.paint(painter)
-        self.volume_rays2.paint(painter)
-        self.volume_rays_line.paint(painter)
-        self.line.paint(painter)
-        self.circle.paint(painter)
-        self.circle2.paint(painter)
+        for volume_ray in self.volume_rays:
+            volume_ray.paint(painter)
+
+        for circle in self.circles:
+            circle.paint(painter)
+
         self.light.paint(painter)
 
     def mousePressEvent(self, event):
@@ -228,12 +228,12 @@ class VolumeLightsDemoWidget(QtWidgets.QWidget):
         self.update()
 
     def sizeHint(self):
-        return QtCore.QSize(200, 200)
+        return QtCore.QSize(300, 300)
 
 
 def main():
     app = QtWidgets.QApplication([])
-    w = VolumeLightsDemoWidget()
+    w = ShadowVolumesDemoWidget()
     w.show()
     app.exec_()
 
