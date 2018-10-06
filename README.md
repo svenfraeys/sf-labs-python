@@ -71,11 +71,11 @@ LSystem adjusted for tree generation.
 
 ## Maze Depth First
 
-![alt text](images/maze_depth_first.jpg "Maze Depth First")
+![alt text](images/maze_depth_first.gif "Maze Depth First")
 
 ## Snake
 
-![alt text](images/snake.jpg "Snake")
+![alt text](images/snake.gif "Snake")
 
 ## Fibonacci Golden Ratio
 
