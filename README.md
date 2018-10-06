@@ -69,6 +69,10 @@ LSystem adjusted for tree generation.
 
 ![alt text](images/perlin_noise_1d.gif "Quadtree")
 
+## Snake
+
+![alt text](images/snake.jpg "Snake")
+
 ## Fibonacci Golden Ratio
 
 ![alt text](images/fibonacci_golden_ratio.gif "Fobnacci Golden Ratio")
@@ -83,4 +87,3 @@ LSystem adjusted for tree generation.
 A two dimensional sliding system
 
 ![alt text](images/slider2d.gif "Slider2DWidget")
-
