@@ -359,7 +359,7 @@ class PathTraceBouncerDemoWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         self.pathtracer.paint(painter)
 
-        txt = "max bounces: {} ¦ scatter per bounce: {}".format(
+        txt = "max bounces: {} | scatter per bounce: {}".format(
             self.pathtracer.max_bounces, self.pathtracer.scatter_per_bounce)
         painter.fillRect(10, 10, 220, 15, QColor(150, 150, 150))
         painter.setPen(QPen())

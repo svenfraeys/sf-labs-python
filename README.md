@@ -11,6 +11,8 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ## Pathtracer 2D bouncing
 
+![alt text](images/pathtrace_bouncer.gif "path tracing bouncing rays test")
+
 ![alt text](images/pathtrace_bouncer.jpg "path tracing bouncing rays test")
 
 ## Marching Squares
