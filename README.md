@@ -26,7 +26,7 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ## Light Volumes
 
-![alt text](images/light_volumes.gif "Rasterization")
+![alt text](images/light_volumes.jpg "Rasterization")
 
 ## Quadtree
 
