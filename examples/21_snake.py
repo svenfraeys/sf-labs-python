@@ -73,6 +73,10 @@ class SnakeGame:
         self.x_chunk = 0
         self.y_chunk = 0
         self.game_over = False
+        self.snake_color = QColor()
+        self.game_over_color = QColor(150, 150,150)
+        self.grid_color = QColor(200, 200, 200)
+        self.game_over_grid_color = QColor(230, 230, 230)
 
     @property
     def width(self):
@@ -93,7 +97,10 @@ class SnakeGame:
         self.__height = value
 
     def paint_grid(self, painter):
-        painter.setPen(QPen(QColor(200, 200, 200)))
+        color = self.grid_color
+        if self.game_over:
+            color = self.game_over_grid_color
+        painter.setPen(QPen(color))
 
         for x in range(self.grid.width):
             for y in range(self.grid.height):
@@ -101,28 +108,37 @@ class SnakeGame:
                                  self.x_chunk, self.y_chunk)
 
     def paint_snake(self, painter):
-
+        color = self.snake_color
+        if self.game_over:
+            color = self.game_over_color
         painter.fillRect(self.snake.x * self.x_chunk,
                          self.snake.y * self.y_chunk, self.x_chunk,
-                         self.y_chunk, QColor())
+                         self.y_chunk, color)
 
-    def paint_rect(self, painter, x, y, size):
+    def paint_rect(self, painter, x, y, size, color):
         # 0.8
         diff = 1.0 - size
         diff_s = 1.0 - diff * 2
         painter.fillRect(x * self.x_chunk + self.x_chunk * diff,
                          y * self.y_chunk + self.y_chunk * diff,
                          self.x_chunk * diff_s, self.y_chunk * diff_s,
-                         QColor())
+                         color)
 
     def paint_food(self, painter):
+        color = self.snake_color
+        if self.game_over:
+            color = self.game_over_color
         painter.fillRect(self.food.x * self.x_chunk + self.x_chunk * 0.2,
                          self.food.y * self.y_chunk + self.y_chunk * 0.2,
-                         self.x_chunk * 0.6, self.y_chunk * 0.6, QColor())
+                         self.x_chunk * 0.6, self.y_chunk * 0.6, color)
 
     def paint_bodies(self, painter):
+        color = self.snake_color
+        if self.game_over:
+            color = self.game_over_color
+
         for body in self.bodies:
-            self.paint_rect(painter, body.x, body.y, 0.9)
+            self.paint_rect(painter, body.x, body.y, 0.9, color)
 
     def paint(self, painter):
 
@@ -130,11 +146,6 @@ class SnakeGame:
         self.paint_snake(painter)
         self.paint_food(painter)
         self.paint_bodies(painter)
-        if self.game_over:
-            painter.setPen(QPen(QColor()))
-
-            text = "GAME OVER"
-            painter.drawText(self.width / 2 - 35, self.height / 3, text)
 
     def add_new_part(self):
         body = SnakeBody(self.snake.x, self.snake.y,
