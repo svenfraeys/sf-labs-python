@@ -9,6 +9,8 @@ from PySide2 import QtGui, QtCore, QtWidgets
 from PySide2.QtGui import QVector2D, QColor, QPen
 from PySide2.QtCore import QRect, QPoint
 
+DEBUG = False
+
 
 class PathTracer:
     def __init__(self):
@@ -17,7 +19,7 @@ class PathTracer:
         self.bounce_rays = []
         self.lines = []
         self.max_bounces = 3
-        self.scatter_bounce = 5
+        self.scatter_per_bounce = 5
         self.all_rays = []
 
     @staticmethod
@@ -78,14 +80,21 @@ class PathTracer:
             return 0
         return (p2.x() - p1.x()) / (p2.y() - p1.y())
 
-    def paint_ray_path(self, painter, ray):
+    def paint_ray_path(self, painter, ray, color):
         painter_path = QtGui.QPainterPath()
         painter_path.moveTo(ray.pos.toPoint())
         r = ray
+
         while r.parent:
+            red = int(((color.red() / 255.0) * r.strength) * 255.0)
+            green = int(((color.green() / 255.0) * r.strength) * 255.0)
+            blue = int(((color.blue() / 255.0) * r.strength) * 255.0)
+
+            painter.setPen(QPen(QtGui.QColor(red, green, blue)))
+            painter.drawLine(r.pos.toPoint(), r.parent.pos.toPoint())
             painter_path.lineTo(r.parent.pos.toPoint())
             r = r.parent
-        painter.drawPath(painter_path)
+            # painter.drawPath(painter_path)
 
     def paint(self, painter):
         for line in self.lines:
@@ -96,18 +105,20 @@ class PathTracer:
         for r in self.all_rays:
             p = r.pos.toPoint()
             r = QRect(p + QPoint(-2, -2), p + QPoint(2, 2))
-            painter.fillRect(r, QColor(0, 0, 200))
+            if DEBUG:
+                painter.fillRect(r, QColor(0, 0, 200))
 
         c = QtGui.QColor(250, 210, 20)
         for ray in self.all_rays:
             if not ray.children:
                 painter.setPen(QtGui.QPen(c))
-                self.paint_ray_path(painter, ray)
+                self.paint_ray_path(painter, ray, c)
 
-        for point in self.debug_points:
-            p = point.toPoint()
-            r = QRect(p + QPoint(-2, -2), p + QPoint(2, 2))
-            painter.fillRect(r, QColor(0, 0, 200))
+        if DEBUG:
+            for point in self.debug_points:
+                p = point.toPoint()
+                r = QRect(p + QPoint(-2, -2), p + QPoint(2, 2))
+                painter.fillRect(r, QColor(0, 0, 200))
 
         for ray in self.rays:
             ray.paint(painter)
@@ -170,7 +181,10 @@ class PathTracer:
 
         angle = math.atan2(nearest_line.normal.y(), nearest_line.normal.x())
         roughness = math.pi / 8.0
-        for i in range(self.scatter_bounce):
+        for i in range(self.scatter_per_bounce):
+            new_strength = ray.strength - random.random() * 0.28
+            if new_strength < 0:
+                continue
             angle_random = roughness / 2.0 - (random.random() * roughness)
             new_angle = angle + angle_random
             new_normal = QVector2D(math.cos(new_angle), math.sin(new_angle))
@@ -178,6 +192,8 @@ class PathTracer:
             bounce_ray = Ray(nearest_point, bounce_dir)
             self.all_rays.append(bounce_ray)
             bounce_ray.parent = ray
+
+            bounce_ray.strength = new_strength
             bounce_ray.line = nearest_line
             self.bounce_rays.append(bounce_ray)
 
@@ -199,7 +215,8 @@ class Line:
         painter.drawLine(self.p0.toPoint(), self.p1.toPoint())
         center = self.p0 + (self.p1 - self.p0) / 2
 
-        painter.drawLine(center.toPoint(), (center + self.normal * 5).toPoint())
+        painter.drawLine(center.toPoint(),
+                         (center + self.normal * 5).toPoint())
 
 
 class Ray:
@@ -209,6 +226,7 @@ class Ray:
         self.__parent = None
         self.line = None
         self.children = []
+        self.strength = 1.0
 
     @property
     def parent(self):
@@ -220,15 +238,16 @@ class Ray:
         self.__parent = value
 
     def paint(self, painter):
-        pen = QPen(QColor(50, 40, 230))
-        painter.setPen(pen)
-        painter.drawLine(self.pos.toPoint(),
-                         (self.pos + self.dir * 20).toPoint())
+        if DEBUG:
+            pen = QPen(QColor(50, 40, 230))
+            painter.setPen(pen)
+            painter.drawLine(self.pos.toPoint(),
+                             (self.pos + self.dir * 20).toPoint())
 
-        start = (self.pos - QVector2D(-2, -2)).toPoint()
-        end = (self.pos - QVector2D(2, 2)).toPoint()
-        r = QtCore.QRect(start, end)
-        painter.fillRect(r, QtGui.QColor(150, 0, 0))
+            start = (self.pos - QVector2D(-2, -2)).toPoint()
+            end = (self.pos - QVector2D(2, 2)).toPoint()
+            r = QtCore.QRect(start, end)
+            painter.fillRect(r, QtGui.QColor(255, 255, 255))
 
 
 class PathTraceBouncerDemoWidget(QtWidgets.QWidget):
@@ -238,26 +257,22 @@ class PathTraceBouncerDemoWidget(QtWidgets.QWidget):
 
     def __init__(self):
         super(PathTraceBouncerDemoWidget, self).__init__()
+
         self.resize(QtCore.QSize(300, 300))
         self.current_mouse_button = None
         self.setWindowTitle("PathTraceBouncer")
         self.points = []
         self.ray = Ray(QVector2D(self.width() / 3, self.height() / 2),
                        QVector2D(0.5, 0.5).normalized())
-        # self.ray = Ray(QVector2D(0, 0),
-        #                QVector2D(1, 0))
-        line = Line(QVector2D(self.width() / 2, self.height() / 3 * 2),
-                    QVector2D(self.width() / 2 + 20, self.height() / 3))
-
-        line1 = Line(QVector2D(self.width() / 3, self.height() / 2 + 20),
-                     QVector2D(self.width() / 3 * 2, self.height() / 2))
-        # line = Line(QVector2D(1, 6), QVector2D(3, -4))
 
         self.pathtracer = PathTracer()
-        self.pathtracer.lines += self.create_circle(QVector2D(self.width() / 2,self.height()/ 2), self.height() / 2, 8)
+        self.pathtracer.lines += self.create_circle(
+            QVector2D(self.width() / 2, self.height() / 2), self.height() / 2,
+            8)
+        self.pathtracer.lines += self.create_circle(
+            QVector2D(self.width() / 2, self.height() / 2), self.height() / 9,
+            8)
         self.pathtracer.rays.append(self.ray)
-        self.pathtracer.lines.append(line)
-        self.pathtracer.lines.append(line1)
 
     def create_circle(self, c, r, s):
         lines = []
@@ -269,7 +284,7 @@ class PathTraceBouncerDemoWidget(QtWidgets.QWidget):
             p = c + v * r
             points.append(p)
 
-        for i in range(0, s-1, 1):
+        for i in range(0, s - 1, 1):
             line = Line(points[i], points[i + 1])
             lines.append(line)
         lines.append(Line(points[-1], points[0]))
@@ -280,6 +295,40 @@ class PathTraceBouncerDemoWidget(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event):
         self.current_mouse_button = event.button()
+
+    def keyPressEvent(self, event):
+
+        if event.key() == QtCore.Qt.Key_Up:
+            self.pathtracer.max_bounces += 1
+            if self.pathtracer.max_bounces > 5:
+                self.pathtracer.max_bounces = 5
+            self.pathtracer.reset()
+            self.pathtracer.start()
+            self.update()
+
+        if event.key() == QtCore.Qt.Key_Down:
+            self.pathtracer.max_bounces -= 1
+            if self.pathtracer.max_bounces < 0:
+                self.pathtracer.max_bounces = 0
+            self.pathtracer.reset()
+            self.pathtracer.start()
+            self.update()
+
+        if event.key() == QtCore.Qt.Key_Right:
+            self.pathtracer.scatter_per_bounce += 1
+            if self.pathtracer.scatter_per_bounce > 6:
+                self.pathtracer.scatter_per_bounce = 6
+            self.pathtracer.reset()
+            self.pathtracer.start()
+            self.update()
+
+        if event.key() == QtCore.Qt.Key_Left:
+            self.pathtracer.scatter_per_bounce -= 1
+            if self.pathtracer.scatter_per_bounce < 0:
+                self.pathtracer.scatter_per_bounce = 0
+            self.pathtracer.reset()
+            self.pathtracer.start()
+            self.update()
 
     def mouseMoveEvent(self, event):
         if self.current_mouse_button == QtCore.Qt.LeftButton:
@@ -297,17 +346,24 @@ class PathTraceBouncerDemoWidget(QtWidgets.QWidget):
             self.pathtracer.start()
             self.update()
 
-
     def showEvent(self, event):
-        self.pathtracer.shoot_ray(self.pathtracer.rays[0])
+        pass
 
     def paintEvent(self, event):
         self.points = []
 
         painter = QtGui.QPainter(self)
+
+        painter.fillRect(self.rect(), QColor(80, 80, 80))
+
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         self.pathtracer.paint(painter)
 
+        txt = "max bounces: {} ¦ scatter per bounce: {}".format(
+            self.pathtracer.max_bounces, self.pathtracer.scatter_per_bounce)
+        painter.fillRect(10, 10, 220, 15, QColor(150, 150, 150))
+        painter.setPen(QPen())
+        painter.drawText(20, 20, txt)
 
     def sizeHint(self):
         return QtCore.QSize(300, 300)

@@ -9,6 +9,9 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/raytracer.gif "raytracer basic cube")
 
+## Pathtracer 2D bouncing
+
+![alt text](images/pathtrace_bouncer.jpg "path tracing bouncing rays test")
 
 ## Marching Squares
 
