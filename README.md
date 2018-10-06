@@ -69,6 +69,10 @@ LSystem adjusted for tree generation.
 
 ![alt text](images/perlin_noise_1d.gif "Quadtree")
 
+## Maze Depth First
+
+![alt text](images/maze_depth_first.jpg "Maze Depth First")
+
 ## Snake
 
 ![alt text](images/snake.jpg "Snake")

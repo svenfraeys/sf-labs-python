@@ -3,8 +3,8 @@ base MazeDepthFirst
 """
 import random
 
-import time
 from PySide2 import QtGui, QtCore, QtWidgets
+from PySide2.QtCore import QTimer
 from PySide2.QtGui import QColor, QPen
 
 
@@ -34,20 +34,29 @@ class Slot:
     def __repr__(self):
         return 'Slot({}, {})'.format(self.x, self.y)
 
+
 class Maze:
     def __init__(self, width, height):
         self.width = width
         self.height = height
         self.repaint = None
+        self.pauze = False
         self.slots = []
         self.stack = []
         self.unvisited_slot_color = QColor(20, 20, 20)
         self.visited_slot_color = QColor(240, 240, 240)
         self.foreground_color = QColor(120,120,120)
         self.background_color = QColor(50, 50, 50)
+        self.next_slot = None
+
     def get_slot(self, x, y):
         if x < 0 or y < 0:
             return None
+        if x >= self.width:
+            return
+
+        if y >= self.height:
+            return
 
         index = self.width * y + x
         if index < 0:
@@ -102,19 +111,17 @@ class Maze:
             slot1.top_wall = False
 
     def generate_maze(self, slot):
-        self.repaint()
-        time.sleep(0.01)
         if self.unvisited_neighbours(slot):
             self.stack.append(slot)
             rand_slot = self.pick_random_unvisited(slot)
 
             rand_slot.visited = True
             self.break_walls(slot, rand_slot)
-            self.generate_maze(rand_slot)
+            self.next_slot = rand_slot
         else:
             if self.stack:
                 s = self.stack.pop()
-                self.generate_maze(s)
+                self.next_slot = s
 
     def generate(self):
         self.generate_grid()
@@ -127,13 +134,16 @@ class Maze:
 
         self.generate_maze(slot)
 
+    def tick(self):
+        if self.pauze:
+            return
+        if self.next_slot:
+            self.generate_maze(self.next_slot)
+
     def paint_slot(self, painter, slot, rect):
         chunk_x = rect.width() / float(self.width)
         chunk_y = rect.height() / float(self.height)
 
-        color = self.unvisited_slot_color
-        if slot.visited:
-            color = self.visited_slot_color
         x = slot.x * chunk_x
         y = slot.y * chunk_y
         w = chunk_x
@@ -173,10 +183,34 @@ class MazeDepthFirstDemoWidget(QtWidgets.QWidget):
         self.setWindowTitle("MazeDepthFirst")
         self.maze = Maze(20, 20)
         self.maze.repaint = self.repaint
+        self.timer = QTimer()
+        self.timer.setInterval(10)
+        self.timer.timeout.connect(self.tick)
+        self.timer.start()
+
+    def tick(self):
+        self.maze.tick()
+        self.update()
 
     def mousePressEvent(self, *args, **kwargs):
         self.maze.generate()
         self.update()
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Space:
+            self.maze.pauze = not self.maze.pauze
+            self.update()
+        if event.key() == QtCore.Qt.Key_Up:
+            self.maze.width *= 2
+            self.maze.height *= 2
+            self.maze.generate()
+            self.update()
+
+        if event.key() == QtCore.Qt.Key_Down:
+            self.maze.width = int(self.maze.width / 2)
+            self.maze.height = int(self.maze.height / 2)
+            self.maze.generate()
+            self.update()
 
     def mouseMoveEvent(self, event):
         x = event.pos().x()
@@ -198,7 +232,6 @@ class MazeDepthFirstDemoWidget(QtWidgets.QWidget):
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
         self.maze.paint(painter, self.rect())
 
     def sizeHint(self):
