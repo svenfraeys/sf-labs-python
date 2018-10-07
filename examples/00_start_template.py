@@ -16,6 +16,16 @@ class TemplateDemoWidget(QtWidgets.QWidget):
         self.tick_timer.setInterval(100)
         self.tick_timer.timeout.connect(self.tick)
 
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Space:
+            pass
+
+    def mousePressEvent(self, event):
+        pass
+
+    def mouseMoveEvent(self, event):
+        pass
+
     def showEvent(self, event):
         self.tick_timer.start()
 
@@ -28,7 +38,7 @@ class TemplateDemoWidget(QtWidgets.QWidget):
         painter.drawEllipse(0, 0, self.width(), self.height())
 
     def tick(self):
-        print("tick")
+        self.update()
 
     def sizeHint(self):
         return QtCore.QSize(300, 300)
