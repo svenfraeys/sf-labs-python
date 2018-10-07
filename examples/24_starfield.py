@@ -2,14 +2,15 @@
 base StarField
 """
 import random
-
-import math
 from PySide2 import QtGui, QtCore, QtWidgets
 from PySide2.QtCore import QPoint
 from PySide2.QtGui import QVector3D, QPen, QColor, QBrush, QPainterPath
 
 
 class Star:
+    """
+    star in space
+    """
     def __init__(self):
         self.pos = QVector3D()
         self.prev_z = 0.0
@@ -29,6 +30,9 @@ class Star:
 
 
 class StarField:
+    """
+    our star field logic
+    """
     def __init__(self):
         self.total_stars = 10000
         self.stars = []
