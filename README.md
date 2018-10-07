@@ -30,6 +30,10 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/light_volumes.gif "Light Volumes")
 
+## Maze Solver
+
+![alt text](images/maze_solver.gif "Maze Solver")
+
 ## Quadtree
 
 ![alt text](images/quadtree.gif "Quadtree")
