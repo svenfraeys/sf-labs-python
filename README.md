@@ -21,6 +21,10 @@ Collections of Custom Widgets and Experiments made in Python for PySide2
 
 ![alt text](images/marchingsquares_particles.gif "Marching Squares Particles")
 
+## Genetic Algorithm
+
+![alt text](images/genetic_algorithm.gif "Marching Squares")
+
 ## Shadow Volumes
 
 ![alt text](images/shadow_volumes.gif "Rasterization")

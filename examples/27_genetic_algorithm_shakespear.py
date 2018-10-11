@@ -4,8 +4,11 @@ base geneticAlgorithm
 import random
 
 from PySide2 import QtGui, QtCore, QtWidgets
+from PySide2.QtGui import QColor
+from PySide2.QtGui import QPen
 
 DRAW_POPULATION = True
+
 
 class DNA:
     def __init__(self):
@@ -25,25 +28,28 @@ class DNA:
 
 class GeneticAlgorithm:
     def __init__(self):
-        self.total_population = 1200
+        self.total_population = 500
         self.target = ''
         self.population = []
-        self.mutation = 0.00006
+        self.mutation = 0.00024
         self.generation = 0
         self.found = False
+        self.pauzed = False
 
     def generate_random_char(self):
         return chr(random.randint(97, 122))
-        return chr(random.randint(32, 122))
+
+    def generate_dna(self):
+        dna = DNA()
+        dna.value = ''
+        for _ in range(len(self.target)):
+            dna.value += self.generate_random_char()
+        return dna
 
     def generate_population(self):
-        print("pop")
         new_population = []
         for i in range(self.total_population):
-            dna = DNA()
-            dna.value = ''
-            for _ in range(len(self.target)):
-                dna.value += self.generate_random_char()
+            dna = self.generate_dna()
             new_population.append(dna)
         self.population = new_population
         self.generation = 0
@@ -75,7 +81,7 @@ class GeneticAlgorithm:
                 mating_pool.append(dna)
 
         new_population = []
-        for _ in self.population:
+        for _ in self.population[:-1]:
             chosen_mate_a = mating_pool[
                 random.randint(0, len(mating_pool) - 1)]
             chosen_mate_b = mating_pool[
@@ -91,43 +97,17 @@ class GeneticAlgorithm:
 
             new_dna.value = mutated_value
             new_population.append(new_dna)
+
+        dna = self.generate_dna()
+        new_population.append(dna)
+
         self.population = new_population
         return
 
-        fitness_chart = []
-        for dna in self.population:
-            fitness_chart.append(float(dna.fitness) / float(total_fitness))
-
-        def get_dna():
-            for j, fitness_i in enumerate(fitness_chart):
-                if fitness_i == 0.0:
-                    continue
-
-                if random.random() <= fitness_i:
-                    return self.population[j]
-
-            print('none')
-            return None
-
-        new_population = []
-        for _ in self.population:
-            first_choice = get_dna()
-            second_choice = get_dna()
-            new_dna = first_choice.cross_over(second_choice)
-            new_population.append(new_dna)
-
-            # mutation
-            mutated_value = ''
-            for c in new_dna.value:
-                if random.random() < self.mutation:
-                    mutated_value += self.generate_random_char()
-                else:
-                    mutated_value += c
-            new_dna.value = mutated_value
-
-        self.population = new_population
-
     def tick(self):
+        if self.pauzed:
+            return
+
         if self.found:
             return
 
@@ -147,16 +127,33 @@ class GeneticAlgorithmDemoWidget(QtWidgets.QWidget):
 
     def __init__(self):
         super(GeneticAlgorithmDemoWidget, self).__init__()
+        self.words = [
+            "zuccini",
+            "tripod",
+            "unicorn",
+            "brugola",
+            "watermeloen",
+        ]
         self.genetic_algorithm = GeneticAlgorithm()
-        self.genetic_algorithm.target = 'to be or not to be'
-        self.genetic_algorithm.target = 'tobeornottobe'
+        self.genetic_algorithm.target = self.words[0]
         self.setWindowTitle("GeneticAlgorithm")
         self.tick_timer = QtCore.QTimer()
         self.tick_timer.setInterval(1)
         self.tick_timer.timeout.connect(self.tick)
+        self.ticks_per_tick = 2
+        self.setCursor(QtCore.Qt.BlankCursor)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Space:
+            if self.genetic_algorithm.pauzed:
+                self.genetic_algorithm.pauzed = False
+                return
+            current_index = self.words.index(self.genetic_algorithm.target)
+            next_index = current_index + 1
+            if next_index >= len(self.words):
+                next_index = 0
+            self.genetic_algorithm.target = self.words[next_index]
+
             self.genetic_algorithm.generate_population()
             self.tick()
 
@@ -168,13 +165,8 @@ class GeneticAlgorithmDemoWidget(QtWidgets.QWidget):
             self.genetic_algorithm.mutation /= 2.0
             self.genetic_algorithm.generate_population()
 
-    def mousePressEvent(self, event):
-        pass
-
-    def mouseMoveEvent(self, event):
-        pass
-
     def showEvent(self, event):
+        self.genetic_algorithm.pauzed = True
         self.genetic_algorithm.generate_population()
         self.genetic_algorithm.generate_fitness()
         self.tick_timer.start()
@@ -185,24 +177,46 @@ class GeneticAlgorithmDemoWidget(QtWidgets.QWidget):
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        painter.drawText(20, 20, self.genetic_algorithm.target)
+        font = painter.font()
+        font.setFamily("Consolas")
+        font.setPointSize(12)
+        painter.setPen(QPen(QColor(120, 120, 120)))
         if DRAW_POPULATION:
-            for i, dna_i in enumerate(self.genetic_algorithm.population):
-                txt = '{} - {}'.format(dna_i.value, dna_i.fitness)
-                painter.drawText(160, 20 + i * 15, txt)
+            for i, dna_i in enumerate(sorted(self.genetic_algorithm.population,
+                                             key=lambda x: x.fitness,
+                                             reverse=True)):
+                txt = '{} | {}'.format(dna_i.value, dna_i.fitness)
+                painter.drawText(210, 35 + i * 15, txt)
+        painter.setPen(QPen(QColor()))
+        font.setPointSize(30)
+        painter.setFont(font)
+        painter.drawText(20, 50, self.genetic_algorithm.target)
 
         fittest_dna = self.genetic_algorithm.get_fittest_dna()
+        progress_normalized = fittest_dna.fitness / float(
+            len(self.genetic_algorithm.target))
+        c = 20 + progress_normalized * 150.0
+        painter.setPen(QPen(QColor(10, c, 10)))
+        painter.drawText(20, 100, fittest_dna.value)
 
-        painter.drawText(20, 40, fittest_dna.value)
-        painter.drawText(20, 60, 'Fitness {}'.format(fittest_dna.fitness))
-        painter.drawText(20, 80, 'Generation {}'.format(
+        painter.setPen(QPen(QColor(80, 80, 80)))
+        font.setPointSize(12)
+        painter.setFont(font)
+        painter.drawText(20, 140,
+                         'Progress: {:.2f}%'.format(
+                             progress_normalized * 100.0))
+        painter.drawText(20, 170,
+                         'Max Fitness: {}'.format(fittest_dna.fitness))
+        painter.drawText(20, 200, 'Generation: {}'.format(
             self.genetic_algorithm.generation))
-        painter.drawText(20, 100, 'Mutation {} %'.format(
+        painter.drawText(20, 230, 'Mutation: {} %'.format(
             self.genetic_algorithm.mutation * 100.0))
+        painter.drawText(20, 260, 'Population: {}'.format(
+            self.genetic_algorithm.total_population))
 
     def tick(self):
-        self.genetic_algorithm.tick()
-
+        for i in range(self.ticks_per_tick):
+            self.genetic_algorithm.tick()
         self.update()
 
     def sizeHint(self):
