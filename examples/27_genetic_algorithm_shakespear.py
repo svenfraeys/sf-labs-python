@@ -31,7 +31,7 @@ class GeneticAlgorithm:
         self.total_population = 500
         self.target = ''
         self.population = []
-        self.mutation = 0.00024
+        self.mutation = 0.01
         self.generation = 0
         self.found = False
         self.pauzed = False
@@ -62,15 +62,30 @@ class GeneticAlgorithm:
                 if dna.value[i] == self.target[i]:
                     dna.fitness += 1
 
+            dna.fitness *= dna.fitness
+
     def get_fittest_dna(self):
         sorted_dna = sorted(self.population, key=lambda x: x.fitness)
         return sorted_dna[-1]
 
-    def natural_selection(self):
+    def get_dna_completion(self, dna):
+        completion = 0
+        for i in range(len(self.target)):
+            if dna.value[i] == self.target[i]:
+                completion += 1
+
+        return float(completion) / float(len(self.target))
+
+
+    def get_total_fitness(self):
         total_fitness = 0
 
         for dna in self.population:
             total_fitness += dna.fitness
+        return total_fitness
+
+    def natural_selection(self):
+        total_fitness = self.get_total_fitness()
 
         if total_fitness == 0:
             return
@@ -128,7 +143,7 @@ class GeneticAlgorithmDemoWidget(QtWidgets.QWidget):
     def __init__(self):
         super(GeneticAlgorithmDemoWidget, self).__init__()
         self.words = [
-            "zuccini",
+            "zucchini",
             "tripod",
             "unicorn",
             "brugola",
@@ -193,8 +208,7 @@ class GeneticAlgorithmDemoWidget(QtWidgets.QWidget):
         painter.drawText(20, 50, self.genetic_algorithm.target)
 
         fittest_dna = self.genetic_algorithm.get_fittest_dna()
-        progress_normalized = fittest_dna.fitness / float(
-            len(self.genetic_algorithm.target))
+        progress_normalized = self.genetic_algorithm.get_dna_completion(fittest_dna)
         c = 20 + progress_normalized * 150.0
         painter.setPen(QPen(QColor(10, c, 10)))
         painter.drawText(20, 100, fittest_dna.value)
