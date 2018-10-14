@@ -2,166 +2,274 @@
 base Runner
 """
 import random
-import time
-from PyQt5.QtGui import QVector2D
+
+import math
 from PySide2 import QtGui, QtCore, QtWidgets
 from PySide2.QtCore import QRect
-from PySide2.QtCore import QRectF
-from PySide2.QtGui import QColor
+
+from sfwidgets.neuralnetwork import Network, NetworkPainter
+from sfwidgets.runner import Runner
+from sfwidgets.runner import RunnerPainter
 
 
-class GameObject:
+class DNA:
     def __init__(self):
-        self.size = 0.1
-        self.pos = QVector2D(0.0, 0.0)
+        self.value = []
+        self.fitness = 0
 
-    @property
-    def rect(self):
-        hsize = self.size / 2.0
-        return QRectF(self.pos.x() - hsize, self.pos.y() - hsize,
-                      self.size, self.size)
+    def cross_over(self, dna):
+        average_list = []
+        for i, v in enumerate(self.value):
+            average_list.append((v + dna.value[i]) / 2.0)
+
+        if False:
+            midpoint = len(self.value) / 2
+            midpoint = int(midpoint)
+            part_a = self.value[:midpoint]
+            part_b = dna.value[midpoint:]
+            value = part_a + part_b
+
+        dna = DNA()
+        dna.value = average_list
+        dna.fitness = 0
+        return dna
 
 
-class Player(GameObject):
-    pass
+class PhenoType:
+    def __init__(self, dna):
+        self.dna = dna
+        self.network = Network(3, [10, 10, 10], 3)
+        self.network.import_weights(dna.value)
+        self.runner = Runner()
+        self.is_running = False
+        self.fitness = 0
 
+    def tick_neural_network(self):
+        data = [
+            self.runner.player.pos.x(),
+            self.runner.player.pos.y(),
+            self.runner.distance_next_obstacle()
+        ]
+        self.network.respond(data)
+        outputs = [n.output for n in self.network.output_layer]
+        if not outputs:
+            return
+        i = outputs.index(max(outputs))
 
-class Obstacle(GameObject):
-    pass
+        if i == 0:
+            return
+        elif i == 1:
+            self.runner.player_up()
+        elif i == 2:
+            self.runner.player_down()
 
+            # @property
+            # def fitness(self):
+            # return self.runner.total_ticks_alive
 
-class Runner:
-    def __init__(self):
-        self.player = Player()
-        self.move_speed = 0.05
-        self.prev_time = time.time()
-        self.obstacles = []
-        self.stopped = False
-
-    def is_obstacle_a_threat(self, obstacle):
-        player_top = self.player.rect.top()
-        player_bottom = self.player.rect.bottom()
-
-        if obstacle.pos.x() < self.player.pos.x():
-            return False
-
-        if obstacle.rect.bottom() < player_top:
-            return False
-
-        if obstacle.rect.top() > player_bottom:
-            return False
-
-        return True
-
-    def distance_next_obstacle(self):
-        closest_obstacle = None
-        closest_distance = 2000.0
-        found = False
-        for obstacle in self.obstacles:
-            if self.is_obstacle_a_threat(obstacle):
-                distance = obstacle.pos.x() - self.player.pos.x()
-                if distance < closest_distance:
-                    closest_distance = distance
-                    closest_obstacle = obstacle
-                    found = True
-
-        if not found:
-            return -1.0
-        return 1.0 - closest_distance
-
-    def player_up(self):
-        self.player.pos.setY(self.player.pos.y() - self.move_speed)
-
-    def player_down(self):
-        self.player.pos.setY(self.player.pos.y() + self.move_speed)
-
-    def add_obstacle(self):
-        obstacle = Obstacle()
-        obstacle.pos.setX(1)
-        obstacle.pos.setY(-1.0 + random.random() * 2.0)
-        self.obstacles.append(obstacle)
-
-    def player_intersects(self, obstacle):
-        if self.player.rect.intersects(obstacle.rect):
-            return True
-        else:
-            return False
+    def start(self):
+        self.is_running = True
+        self.runner.reset()
 
     def tick(self):
-        if self.stopped:
-            return
-
-        print(self.distance_next_obstacle())
-
-        # self.distance_next_obstacle()
-
-        curr_time = time.time()
-        diff = curr_time - self.prev_time
-
-        if diff > 0.8:
-            self.add_obstacle()
-            self.prev_time = curr_time
-
-        for obstalce in self.obstacles:
-            obstalce.pos.setX(obstalce.pos.x() - 0.01)
-
-        for obstalce in self.obstacles:
-            if self.player_intersects(obstalce):
-                self.stopped = True
+        self.runner.tick()
+        self.tick_neural_network()
+        self.is_running = not self.runner.stopped
+        if not self.runner.stopped:
+            self.fitness += math.floor(
+                (1.0 - abs(self.runner.player.pos.y()))) * 20
 
 
-class RunnerPainter:
-    def __init__(self, runner, rect):
-        self.rect = rect
+class GeneticAlgorithm:
+    GENERATING_FITNESS = 'generating_fitness'
+    MUTATE = 'mutate'
+    START = 'start'
+    TRANSFER_FITNESS = 'transfer_fitness'
+    CROSS_OVER = 'cross_over'
+    STOP = 'stop'
+
+    def __init__(self):
+        self.structure_network = Network(3, [10, 10, 10], 3)
+        self.total_population = 20
+        self.population = []
+        self.mutation = 0.01
+        self.generation = 0
+        self.pauzed = False
+        self.state = self.START
+        self.pheno_types = []
+
+    def setup(self):
+        self.structure_network.setup()
+        self.generate_population()
+        self.generation = 0
+
+    def generate_population(self):
+        # make the population
+        self.population = []
+        for i in range(self.total_population):
+            w = self.structure_network.clone().export_weights()
+            dna = DNA()
+            dna.value = w
+            self.population.append(dna)
+
+    def generate_pheno_types(self):
+        self.pheno_types = []
+        for i in range(self.total_population):
+            dna = self.population[i]
+            pheno_type = PhenoType(dna)
+            self.pheno_types.append(pheno_type)
+            pheno_type.start()
+
+    def get_fittest_dna(self):
+        fittest_dna = sorted(self.population, key=lambda x: x.fitness)
+        return fittest_dna[-1]
+
+    def do_cross_over(self):
+        pheno_types = sorted(self.pheno_types, key=lambda x: x.fitness,
+                             reverse=True)
+        total_fitness = sum([p.fitness for p in self.pheno_types])
+
+        def pick_pheno_type():
+            target = random.random()
+            count = 0.0
+
+            for pheno_type in pheno_types:
+                if pheno_type.fitness == 0:
+                    continue
+
+                fitness_normal = float(pheno_type.fitness) / float(
+                    total_fitness)
+
+                if target <= count + fitness_normal:
+                    return pheno_type
+
+                count += fitness_normal
+
+        new_population = []
+        for i in range(self.total_population - 1):
+            pheno_type_a = pick_pheno_type()
+            pheno_type_b = pick_pheno_type()
+            pheno_type_new = pheno_type_a.dna.cross_over(pheno_type_b.dna)
+            new_population.append(pheno_type_new)
+
+        nn = self.structure_network.clone()
+        dna = DNA()
+        w = nn.export_weights()
+        weights = []
+        for _ in range(len(w)):
+            weights.append(-1 + random.random() * 2)
+
+        dna.value = weights
+        new_population.append(dna)
+
+        self.population = new_population
+        self.generation += 1
+        print(self.generation)
+
+    def tick(self):
+        if self.state == self.START:
+            self.generate_pheno_types()
+            self.state = self.GENERATING_FITNESS
+
+        if self.state == self.GENERATING_FITNESS:
+
+            all_done = True
+            for pheno_type in self.pheno_types:
+                pheno_type.tick()
+                if pheno_type.is_running:
+                    all_done = False
+            if all_done:
+                self.state = self.TRANSFER_FITNESS
+        if self.state == self.TRANSFER_FITNESS:
+            for pheno_type in self.pheno_types:
+                pheno_type.dna.fitness = pheno_type.fitness
+            if self.generation < 2000:
+                self.state = self.CROSS_OVER
+            else:
+                self.state = self.STOP
+
+        if self.state == self.CROSS_OVER:
+            self.do_cross_over()
+            self.state = self.START
+
+        if self.state == self.STOP:
+            pass
+
+
+class RunnerTrainer:
+    """trainer for runner
+    """
+
+    def __init__(self, network, runner):
+        self.network = network
         self.runner = runner
 
-    def pos_to_screen(self, pos):
-        hwidth = self.rect.width() / 2.0
-        hheight = self.rect.height() / 2.0
-        x = hwidth + pos.x() * hwidth
-        y = hheight + pos.y() * hheight
-        return QVector2D(x, y)
+    def tick_neural_network(self):
+        data = [
+            self.runner.player.pos.x(),
+            self.runner.player.pos.y(),
+            self.runner.distance_next_obstacle()
+        ]
+        self.network.respond(data)
+        outputs = [n.output for n in self.network.output_layer]
+        i = outputs.index(max(outputs))
 
-    def rect_to_screen(self, r):
-        pos = self.pos_to_screen(QVector2D(r.x(), r.y()))
-        w = (r.width() / 2.0) * self.rect.width()
-        h = (r.height() / 2.0) * self.rect.height()
-        return QRect(pos.x(), pos.y(), w, h)
+        if i == 0:
+            return
+        elif i == 1:
+            self.runner.player_up()
+        elif i == 2:
+            self.runner.player_down()
 
-    def paint(self, painter):
-        r = self.runner.player.rect
-        pos = self.pos_to_screen(self.runner.player.pos)
-        pos = self.pos_to_screen(QVector2D(r.x(), r.y()))
-        size = self.pos_to_screen(QVector2D(r.width(), r.height()))
-        # painter.drawRect(pos.x(), pos.y(), 20, 20)
-        self.paint_gameobject(painter, self.runner.player)
-        self.paint_obstacles(painter)
+    def tick(self):
+        self.runner.tick()
+        self.tick_neural_network()
 
-    def paint_gameobject(self, painter, gameobject):
-        screen_pos = self.pos_to_screen(gameobject.pos)
-        r = gameobject.rect
-        pos = self.pos_to_screen(gameobject.pos)
-        # pos = self.pos_to_screen(QVector2D(r.x(), r.y()))
-        # size = self.pos_to_screen(QVector2D(r.width(), r.height()))
-        # painter.drawRect(pos.x(), pos.y(), (size).x(), (size).y())
-        painter.drawLine(pos.x(), pos.y(), pos.x() + 5, pos.y())
-        painter.drawLine(pos.x(), pos.y(), pos.x() - 5, pos.y())
-        painter.drawLine(pos.x(), pos.y(), pos.x(), pos.y() + 5)
-        painter.drawLine(pos.x(), pos.y(), pos.x(), pos.y() - 5)
 
-        rect = self.rect_to_screen(gameobject.rect)
-        if isinstance(gameobject, Obstacle):
-            if self.runner.is_obstacle_a_threat(gameobject):
-                painter.fillRect(rect, QColor(200, 0, 0))
-        painter.drawRect(rect)
+class RunnerAI:
+    def __init__(self, network):
+        """give the network to train
+        """
+        self.network = network
+        self.total_population = 20
+        self.runner_games = []
+        self.trainers = []
+        self.best_neural_network = network
+        self.is_training = False
+        self.on_training_finished = None
 
-        txt = 'x: {} y: {}'.format(
-            gameobject.pos.x(), gameobject.pos.y())
-        painter.drawText(int(pos.x()), int(pos.y() - 10), txt)
+    def train(self):
+        self.is_training = True
 
-    def paint_obstacles(self, painter):
-        for obstacle in self.runner.obstacles:
-            self.paint_gameobject(painter, obstacle)
+    def setup(self):
+        for i in range(self.total_population):
+            r = Runner()
+            t = RunnerTrainer(self.network.clone(), r)
+            self.runner_games.append(r)
+            self.trainers.append(t)
+
+    def all_games_stopped(self):
+        for game in self.runner_games:
+            if not game.stopped:
+                return False
+        return True
+
+    def tick(self):
+        if not self.is_training:
+            return
+
+        for g in self.runner_games:
+            g.tick()
+
+        if not self.all_games_stopped():
+            return
+
+        fitness = [g.total_ticks_alive for g in self.runner_games]
+        i = fitness.index(max(fitness))
+        self.best_neural_network = self.trainers[i].network
+        self.is_training = False
+        if self.on_training_finished:
+            self.on_training_finished()
 
 
 class RunnerDemoWidget(QtWidgets.QWidget):
@@ -171,6 +279,7 @@ class RunnerDemoWidget(QtWidgets.QWidget):
 
     def __init__(self):
         super(RunnerDemoWidget, self).__init__()
+        self.setCursor(QtCore.Qt.BlankCursor)
         self.setWindowTitle("Runner")
         self.tick_timer = QtCore.QTimer()
         self.tick_timer.setInterval(10)
@@ -178,13 +287,42 @@ class RunnerDemoWidget(QtWidgets.QWidget):
         self.runner = Runner()
         self.runner_painter = RunnerPainter(self.runner, self.rect())
 
+        self.network = Network(3, [10, 10, 10], 3)
+        self.runner_ai = RunnerAI(self.network)
+        self.runner_ai.on_training_finished = self.training_finished
+        self.runner_ai.setup()
+        self.network_painter = NetworkPainter(self.network)
+        self.network_painter.rect = QRect(0, 0, self.width() / 2,
+                                          self.height() / 2)
+        self.network.setup()
+        self.runner_trainer = RunnerTrainer(self.network, self.runner)
+        self.genetic_algorithm = GeneticAlgorithm()
+        self.genetic_algorithm.setup()
+
+    def training_finished(self):
+        self.network = self.runner_ai.best_neural_network
+
     def resizeEvent(self, event):
-        self.runner_painter.rect = self.rect()
+        r = QRect(self.width() / 2, self.height() / 2, self.width() / 2,
+                  self.height() / 2)
+        self.runner_painter.rect = r
+        self.network_painter.rect = QRect(0, 0, self.width() / 2,
+                                          self.height() / 2)
         self.update()
 
     def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Enter:
+            self.network = self.runner_ai.best_neural_network
+            self.runner.reset()
+
         if event.key() == QtCore.Qt.Key_Space:
-            pass
+            fittest_dna = self.genetic_algorithm.get_fittest_dna()
+            print(fittest_dna.fitness)
+            self.network.import_weights(
+                fittest_dna.value)
+            # self.network.setup()
+            self.runner.reset()
+            # self.runner_ai.train()
 
         if event.key() == QtCore.Qt.Key_Up:
             self.runner.player_up()
@@ -194,14 +332,10 @@ class RunnerDemoWidget(QtWidgets.QWidget):
             self.runner.player_down()
             self.update()
 
-    def mousePressEvent(self, event):
-        pass
-
-    def mouseMoveEvent(self, event):
-        pass
-
     def showEvent(self, event):
-        self.runner_painter.rect = self.rect()
+        r = QRect(self.width() / 2, 0, self.width() / 2,
+                  self.height() / 2)
+        self.runner_painter.rect = r
         self.tick_timer.start()
 
     def closeEvent(self, event):
@@ -210,12 +344,16 @@ class RunnerDemoWidget(QtWidgets.QWidget):
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        painter.drawEllipse(0, 0, self.width(), self.height())
+        painter.drawText(100, 100,
+                         "Fitness: {}".format(self.runner.total_ticks_alive))
         self.runner_painter.paint(painter)
+        self.network_painter.paint(painter)
 
     def tick(self):
-        self.runner.tick()
+        self.runner_ai.tick()
+        self.runner_trainer.tick()
         self.update()
+        self.genetic_algorithm.tick()
 
     def sizeHint(self):
         return QtCore.QSize(300, 300)
