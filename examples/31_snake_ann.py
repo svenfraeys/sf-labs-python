@@ -140,6 +140,10 @@ class SnakePhenotype(object):
 
         self.fitness += 1
 
+        if self.is_finished:
+            # if we die power up the fitness
+            self.fitness = self.fitness * (self.fitness / 1000.0)
+
 
 class SnakeGenetic(object):
     START = 'start'
