@@ -1,3 +1,4 @@
+from PySide2 import QtCore
 from PySide2 import QtWidgets
 from sfwidgets.slider2d import Slider2DWidget
 
@@ -32,6 +33,9 @@ class MyWidget(QtWidgets.QWidget):
         horizontal_layout.addWidget(self.__x_spinbox)
         horizontal_layout.addWidget(self.__y_spinbox)
         horizontal_layout.addWidget(self.__reset_button)
+
+    def sizeHint(self):
+        return QtCore.QSize(300, 300)
 
     def __reset(self):
         self.__slider2d_widget.set_value_xy(0.0, 0.0)
