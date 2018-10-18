@@ -1,11 +1,13 @@
-
+body {
+background-color: #111111;
+}
 
 .imageGrid {
   line-height: 0;
 }
 .imageGrid .tile {
-  width:10.0%;
-  min-height:10em;
+  width:21.0%;
+  min-height:20em;
   line-height: 1.2;
   display:inline-block;
   background-size: cover;
@@ -17,8 +19,8 @@
   color:#fff;
   font-family:"Verdana",sans-serif;
   text-shadow: 2px 2px 2px #000;
-  cursor: pointer;
-  cursor: hand;
+  /*cursor: pointer;*/
+  /*cursor: hand;*/
 }
 
 .imageGrid .tile:before {
