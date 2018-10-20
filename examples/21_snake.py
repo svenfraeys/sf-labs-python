@@ -17,9 +17,16 @@ class SnakeGameDemoWidget(QtWidgets.QWidget):
         self.resize(QtCore.QSize(300, 300))
         self.setWindowTitle("SnakeGame")
         self.snake_game = SnakeGame()
+        self.snake_game.deterministic_food = True
+        self.snake_game.food_positions = [
+            (6, 6),
+            (2, 15),
+            (17, 3)
+        ]
         self.snake_game.rect = self.rect()
         self.snake_game.width = self.width()
         self.snake_game.height = self.height()
+        self.snake_game.setup()
         self.tick_timer = QTimer()
         self.tick_timer.setInterval(100)
         self.tick_timer.timeout.connect(self.tick)

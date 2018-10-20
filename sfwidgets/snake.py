@@ -65,6 +65,7 @@ class SnakeGame(object):
         self.last_body = None
         self.grid = Grid(20, 20)
         self.food = Food(12, 10)
+
         self.grid.generate()
         self.__width = None
         self.__height = None
@@ -72,10 +73,14 @@ class SnakeGame(object):
         self.y_chunk = 0
         self.score = 0
         self.game_over = False
+        self.game_won = False
         self.snake_color = QColor()
         self.game_over_color = QColor(150, 150, 150)
         self.grid_color = QColor(200, 200, 200)
         self.game_over_grid_color = QColor(230, 230, 230)
+        self.food_positions = []
+        self.deterministic_food = True
+        self.food_index = 0
 
     @property
     def width(self):
@@ -158,6 +163,9 @@ class SnakeGame(object):
 
         if self.game_over:
             return
+        
+        if self.game_won:
+            return
 
         next_x = self.snake.x + self.snake.direction.x()
         next_y = self.snake.y + self.snake.direction.y()
@@ -188,20 +196,36 @@ class SnakeGame(object):
         # snake eats the food add new part
         if self.snake.x == self.food.x and self.snake.y == self.food.y:
             self.score += 1
+            self.next_food()
+            self.add_new_part()
+
+    def next_food(self):
+        if self.deterministic_food:
+            if self.score == len(self.food_positions):
+                self.game_won = True
+                return
+            self.food.x, self.food.y = self.food_positions[self.food_index]
+            self.food_index += 1
+        else:
             self.food.x = random.randint(0, self.grid.width - 1)
             self.food.y = random.randint(0, self.grid.height - 1)
 
-            self.add_new_part()
+    def setup(self):
+        self.next_food()
 
     def reset(self):
         self.bodies = []
+        self.score = 0
         self.last_body = None
         self.snake.x = 10
         self.snake.y = 10
         self.game_over = False
+        self.game_won = False
+        self.food_index = 0
+        self.next_food()
 
     def key_pressed(self, key):
-        if self.game_over:
+        if self.game_over or self.game_won:
             self.reset()
         if key == QtCore.Qt.Key_Left:
             self.snake.go_left()

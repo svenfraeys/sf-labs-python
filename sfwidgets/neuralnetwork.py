@@ -52,8 +52,6 @@ class Network:
 
     def export_weights(self):
         weights_list = []
-        for neuron in self.input_layer:
-            weights_list += neuron.weights
 
         for layer in self.hidden_layers:
             for neuron in layer:
@@ -71,9 +69,6 @@ class Network:
 
             for i in range(tw):
                 n.weights[i] = weights.pop()
-
-        for neuron in self.input_layer:
-            fill_neuron(neuron)
 
         for layer in self.hidden_layers:
             for neuron in layer:

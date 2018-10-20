@@ -26,6 +26,10 @@ class NeuralNetworkDemoWidget(QtWidgets.QWidget):
         self.network_painter.rect = self.rect()
         self.exported_weights = []
         self.setCursor(QtCore.Qt.BlankCursor)
+        w = self.network.export_weights()
+        self.network.import_weights(w)
+
+        assert w == self.network.export_weights()
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_S:
