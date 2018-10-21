@@ -13,9 +13,10 @@ from PySide2.QtWidgets import QWidget, QApplication
 
 from sfwidgets.neuralnetwork import Network, NetworkPainter
 from sfwidgets.snake import SnakeGame
+from sfwidgets.charts import LineChart
 
-TOTAL_POPULATION = 30
-MUTATION_RATE = 0.02
+TOTAL_POPULATION = 40
+MUTATION_RATE = 0.01
 START_GENERATION = 0
 NO_SCORE_CHANGE_MAX_TICKS = 200
 
@@ -44,23 +45,17 @@ class SnakeDNA(object):
         self.value = value
 
     def crossover(self, dna):
-        if True:
-            midpoint = random.randint(0, len(self.value))
-            midpoint = int(midpoint)
-            part_1_a = self.value[:midpoint]
-            part_1_b = dna.value[midpoint:]
+        midpoint = random.randint(0, len(self.value))
+        midpoint = int(midpoint)
+        part_1_a = self.value[:midpoint]
+        part_1_b = dna.value[midpoint:]
 
-            part_2_a = dna.value[:midpoint]
-            part_2_b = self.value[midpoint:]
+        part_2_a = dna.value[:midpoint]
+        part_2_b = self.value[midpoint:]
 
-            value_1 = part_1_a + part_1_b
-            value_2 = part_2_a + part_2_b
+        value_1 = part_1_a + part_1_b
+        value_2 = part_2_a + part_2_b
 
-        else:
-            average_list = []
-            for i, v in enumerate(self.value):
-                average_list.append((v + dna.value[i]) / 2.0)
-            value = average_list
         dna_1 = SnakeDNA(value_1)
         dna_1.fitness = 0
         dna_2 = SnakeDNA(value_2)
@@ -70,7 +65,7 @@ class SnakeDNA(object):
     def mutate(self, mutation_rate):
         new_value = []
         for v in self.value:
-            if random.random() < mutation_rate:
+            if random.random() <= mutation_rate:
                 v = -1 + random.random() * 2
                 new_value.append(v)
             else:
@@ -225,30 +220,42 @@ class SnakeGenetic(object):
         for phenotype in self.phenotypes:
             phenotype.tick()
 
+    def pick_pheno_type(self, total_fitness):
+        target = random.random()
+        count = 0.0
+
+        for pheno_type in self.phenotypes:
+            if pheno_type.fitness == 0:
+                continue
+
+            fitness_normal = float(pheno_type.fitness) / float(
+                total_fitness)
+
+            if target <= count + fitness_normal:
+                return pheno_type
+
+            count += fitness_normal
+
     def crossover(self):
+        fitness_list = [p.fitness for p in self.phenotypes]
+        fitness_list = sorted(fitness_list, reverse=True)
         total_fitness = sum([p.fitness for p in self.phenotypes])
 
-        def pick_pheno_type():
-            target = random.random()
-            count = 0.0
+        population = []
 
-            for pheno_type in self.phenotypes:
-                if pheno_type.fitness == 0:
-                    continue
+        strongest_phenotype = self.phenotypes[
+            fitness_list.index(fitness_list[0])]
+        second_strongest_phenotype = self.phenotypes[
+            fitness_list.index(fitness_list[0])]
+        new_best_dna_1, new_best_dna_2 = strongest_phenotype.dna.crossover(second_strongest_phenotype.dna)
 
-                fitness_normal = float(pheno_type.fitness) / float(
-                    total_fitness)
-
-                if target <= count + fitness_normal:
-                    return pheno_type
-
-                count += fitness_normal
+        population += [new_best_dna_1, new_best_dna_2, strongest_phenotype.dna, second_strongest_phenotype.dna]
 
         # generate the new population
-        population = []
-        for i in range(self.total_population / 2):
-            phenotype_a = pick_pheno_type()
-            phenotype_b = pick_pheno_type()
+
+        for i in range((self.total_population / 2) - 4):
+            phenotype_a = self.pick_pheno_type(total_fitness)
+            phenotype_b = self.pick_pheno_type(total_fitness)
             new_dna_1, new_dna_2 = phenotype_a.dna.crossover(phenotype_b.dna)
             population.append(new_dna_1)
             population.append(new_dna_2)
@@ -331,6 +338,9 @@ class SnakeWidget(QWidget):
         self.ai_timer.timeout.connect(self.tick_ai)
         self.ai_timer.setInterval(1)
 
+        self.linechart = LineChart()
+        self.linechart.rect = self.rect()
+
         prev_generation = self.snakegenetic.generation
         while self.snakegenetic.generation < START_GENERATION:
             if self.snakegenetic.winning_phenotypes:
@@ -356,12 +366,17 @@ class SnakeWidget(QWidget):
 
         self.update()
 
-    def showEvent(self, event):
-        r = QRect(0, 0, self.width() / 2, self.height() / 2)
+    def update_network_rect(self):
+        r = QRect(5, 5, self.width() / 4, self.height() / 6)
         self.network_painter.rect = r
+
+    def showEvent(self, event):
+
         self.snake.rect = self.rect()
         self.snake.width = self.width()
         self.snake.height = self.height()
+        self.update_network_rect()
+        self.update_linechart_rect()
         self.update()
 
     def sizeHint(self):
@@ -375,6 +390,24 @@ class SnakeWidget(QWidget):
         painter.drawText(170, 20, 'state: {}'.format(self.snakegenetic.state))
         painter.drawText(170, 40,
                          'generation: {}'.format(self.snakegenetic.generation))
+
+        self.linechart.paint(painter)
+
+    def update_linechart_rect(self):
+        r = self.rect()
+        w = r.width() / 10
+        h = r.height() / 10
+        self.linechart.rect = QRect(w, r.height() - h - 10, w * 2, h)
+
+    def update_snake_rect(self):
+        self.snake.rect = self.rect()
+        self.snake.width = self.width()
+        self.snake.height = self.height()
+
+    def resizeEvent(self, event):
+        self.update_network_rect()
+        self.update_linechart_rect()
+        self.update_snake_rect()
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Space:
@@ -409,6 +442,9 @@ class SnakeWidget(QWidget):
 
     def generation_incremented(self):
         self.make_snake_game()
+        fitness_list = [p.fitness for p in self.snakegenetic.phenotypes]
+        self.linechart.data.append(sum(fitness_list) / len(self.snakegenetic.phenotypes))
+
         dna = self.snakegenetic.get_best_phenotype().dna
         self.network.import_weights(dna.value)
         self.snake.reset()

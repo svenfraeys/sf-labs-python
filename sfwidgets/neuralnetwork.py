@@ -186,7 +186,7 @@ class NetworkPainter:
 
                     painter.setPen(QPen(c))
                     input_x, input_y = neuron_pos[neuron_input]
-                    painter.drawLine(x, y, input_x, input_y)
+                    painter.drawLine(self.rect.x() + x, self.rect.y() + y, self.rect.x() + input_x, self.rect.y() + input_y)
 
         n_size = self.get_neuron_size()
         h_size = n_size / 2
@@ -197,6 +197,6 @@ class NetworkPainter:
             p = QPen(QColor())
             painter.setPen(p)
             painter.setBrush(b)
-            painter.drawEllipse(x - h_size, y - h_size, n_size, n_size)
+            painter.drawEllipse(self.rect.x() + x - h_size, self.rect.y() + y - h_size, n_size, n_size)
             if self.draw_output_value:
                 painter.drawText(x, y - 20, str('{:.2f}'.format(n.output)))
