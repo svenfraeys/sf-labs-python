@@ -99,8 +99,6 @@ LSystem adjusted for tree generation.
 
 ## Slider2DWidget
 
-A two dimensional sliding system
-
 ![alt text](images/slider2d.gif "Slider2DWidget")
 
 ## Star Field
@@ -114,3 +112,7 @@ A two dimensional sliding system
 ## Random Walker
 
 ![alt text](images/randomwalker.gif "Random Walker")
+
+## Levy Flight
+
+![alt text](images/slider2d.gif "Slider2DWidget")
