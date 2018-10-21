@@ -69,6 +69,10 @@ LSystem adjusted for tree generation.
 
 ![alt text](images/diamondsquare.gif "Diamond Square")
 
+## Diffusion Limited Aggregation
+
+![alt text](images/dla.gif "Diffusion Limited Aggregation")
+
 ## Perlin Noise 2D
 
 ![alt text](images/perlin_noise_2d.gif "Quadtree")
