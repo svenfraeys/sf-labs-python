@@ -115,4 +115,4 @@ LSystem adjusted for tree generation.
 
 ## Levy Flight
 
-![alt text](images/slider2d.gif "Slider2DWidget")
+![alt text](images/levyflight.gif "Slider2DWidget")
