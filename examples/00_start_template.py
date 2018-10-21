@@ -12,6 +12,7 @@ class TemplateDemoWidget(QtWidgets.QWidget):
     def __init__(self):
         super(TemplateDemoWidget, self).__init__()
         self.setWindowTitle("Template")
+        self.setCursor(QtCore.Qt.BlankCursor)
         self.tick_timer = QtCore.QTimer()
         self.tick_timer.setInterval(100)
         self.tick_timer.timeout.connect(self.tick)

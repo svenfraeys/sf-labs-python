@@ -110,3 +110,7 @@ A two dimensional sliding system
 ## Voronoi Diagram
 
 ![alt text](images/voronoi_diagram.gif "Voronoi Diagram")
+
+## Random Walker
+
+![alt text](images/randomwalker.gif "Random Walker")
