@@ -8,12 +8,12 @@ from PySide2 import QtGui, QtCore, QtWidgets
 from PySide2.QtCore import QRect, QThread
 from PySide2.QtGui import QVector2D, QPen, QBrush, QColor
 
-MAX_ACTIVE_WALKERS = 80
+MAX_ACTIVE_WALKERS = 200
 MAX_STICKING_WALKER = 600
-WALKER_RADIUS = 3.0
+WALKER_RADIUS = 6.0
 DEBUG = False
 WALK_TROUGH_EDGES = False
-WALK_SPEED = 3.0
+WALK_SPEED = 6.0
 PI2 = math.pi * 2.0
 
 
@@ -69,10 +69,7 @@ class Walker(object):
     def intersects(self, walker):
         # intersect checking avoiding square root
         length_sqr = length_square(self.pos, walker.pos)
-        if length_sqr < self.radius * self.radius + walker.radius * walker.radius:
-            return True
-        else:
-            return False
+        return length_sqr < self.radius * self.radius + walker.radius * walker.radius
 
 
 class DLA(object):
@@ -205,7 +202,7 @@ class DlaDemoWidget(QtWidgets.QWidget):
         self.setCursor(QtCore.Qt.BlankCursor)
         self.dla = DLA()
         self.tick_timer = QtCore.QTimer()
-        self.tick_timer.setInterval(1000)
+        self.tick_timer.setInterval(10)
         self.tick_timer.timeout.connect(self.tick)
         self.dla_thread = DlaThread(self.dla)
         self.dla_thread.on_progress.connect(self.on_progress)
