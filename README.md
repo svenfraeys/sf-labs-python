@@ -120,3 +120,7 @@ LSystem adjusted for tree generation.
 ## Levy Flight
 
 ![alt text](images/levyflight.gif "Slider2DWidget")
+
+## Plotting Cos Sin Tan
+
+![alt text](images/plotting_cos_sin_tan.gif "Plotting Cos Sin Tan")
