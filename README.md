@@ -1,7 +1,14 @@
-# SFWidgets
+# Labs Python
 
-Collections of Custom Widgets and Experiments made in Python for PySide2
+Collections of Experiments made in Python
 
+## EvoLisa
+
+Using Genetic Algorithm to Evolve Triangles to match an image
+
+[Read More](.examples/38_evolisa/evolisa.md)
+
+![alt text](examples/38_evolisa/images/evolisa.gif "EvoLisa")
 
 ## Raytracer
 
