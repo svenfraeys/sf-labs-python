@@ -12,46 +12,46 @@ Using Genetic Algorithm to Evolve Triangles to match an image
 
 ## Raytracer
 
-![alt text](images/raytracer_shadows_reflection.png "ray tracer shadows")
+![alt text](projects/018_ray_tracer/raytracer_shadows_reflection.png "ray tracer shadows")
 
-![alt text](images/raytracer.gif "raytracer basic cube")
+![alt text](projects/018_ray_tracer/raytracer.gif "raytracer basic cube")
 
 ## Pathtracer 2D bouncing
 
-![alt text](images/pathtrace_bouncer.gif "path tracing bouncing rays test")
+![alt text](projects/021_path_tracer_bounces/pathtrace_bouncer.gif "path tracing bouncing rays test")
 
-![alt text](images/pathtrace_bouncer.jpg "path tracing bouncing rays test")
+![alt text](projects/021_path_tracer_bounces/pathtrace_bouncer.jpg "path tracing bouncing rays test")
 
 ## Marching Squares
 
-![alt text](images/marchingsquares.gif "Marching Squares")
+![alt text](projects/009_marching_squares/marchingsquares.gif "Marching Squares")
 
-![alt text](images/marchingsquares_particles.gif "Marching Squares Particles")
+![alt text](projects/009_marching_squares/marchingsquares_particles.gif "Marching Squares Particles")
 
 ## Genetic Algorithm
 
-![alt text](images/genetic_algorithm.gif "Marching Squares")
+![alt text](projects/027_genetic_algorithm_shakespear/genetic_algorithm.gif "Marching Squares")
 
 ## Shadow Volumes
 
-![alt text](images/shadow_volumes.gif "Rasterization")
+![alt text](projects/019_shadow_volumes/shadow_volumes.gif "Rasterization")
 
 
 ## Light Volumes
 
-![alt text](images/light_volumes.gif "Light Volumes")
+![alt text](projects/020_light_volumes/light_volumes.gif "Light Volumes")
 
 ## Maze Solver
 
-![alt text](images/maze_solver.gif "Maze Solver")
+![alt text](projects/025_maze_solver/maze_solver.gif "Maze Solver")
 
 ## Quadtree
 
-![alt text](images/quadtree.gif "Quadtree")
+![alt text](projects/008_quadtree/quadtree.gif "Quadtree")
 
 ## Tree Colonization
 
-![alt text](images/treecolonization.gif "LSystem")
+![alt text](projects/014_tree_colonization/treecolonization.gif "LSystem")
 
 
 ## LTree
@@ -66,15 +66,15 @@ LSystem adjusted for tree generation.
 
 ## Pythagoras Tree
 
-![alt text](images/pythagorastree.gif "LSystem")
+![alt text](projects/012_pythagoras_tree/pythagorastree.gif "LSystem")
 
 ## Mandelbrot
 
-![alt text](images/mandelbrot.gif "Mandelbrot")
+![alt text](projects/005_mandelbrot/mandelbrot.gif "Mandelbrot")
 
 ## Diamond Square
 
-![alt text](images/diamondsquare.gif "Diamond Square")
+![alt text](projects/007_diamond_square/diamondsquare.gif "Diamond Square")
 
 ## Diffusion Limited Aggregation
 
@@ -82,19 +82,19 @@ LSystem adjusted for tree generation.
 
 ## Perlin Noise 2D
 
-![alt text](images/perlin_noise_2d.gif "Quadtree")
+![alt text](projects/015_perlin_noise/perlin_noise_2d.gif "Quadtree")
 
 ## Perlin Noise 1D
 
-![alt text](images/perlin_noise_1d.gif "Quadtree")
+![alt text](projects/015_perlin_noise/perlin_noise_1d.gif "Quadtree")
 
 ## Maze Depth First
 
-![alt text](images/maze_depth_first.gif "Maze Depth First")
+![alt text](projects/022_maze_depth_first/maze_depth_first.gif "Maze Depth First")
 
 ## Snake
 
-![alt text](images/snake.gif "Snake")
+![alt text](projects/002_snake/snake.gif "Snake")
 
 ## Fibonacci Golden Ratio
 
@@ -102,11 +102,11 @@ LSystem adjusted for tree generation.
 
 ## Rasterization
 
-![alt text](images/rasterization.gif "Rasterization")
+![alt text](projects/011_rasterization/rasterization.gif "Rasterization")
 
 ## 10 PRINT
 
-![alt text](images/tenprint.gif "Tenprint")
+![alt text](projects/023_10print/tenprint.gif "Tenprint")
 
 ## Slider2DWidget
 
@@ -116,20 +116,20 @@ LSystem adjusted for tree generation.
 
 ## Star Field
 
-![alt text](images/starfield.gif "Star Field")
+![alt text](projects/024_starfield/starfield.gif "Star Field")
 
 ## Voronoi Diagram
 
-![alt text](images/voronoi_diagram.gif "Voronoi Diagram")
+![alt text](projects/026_voronoi_diagram/voronoi_diagram.gif "Voronoi Diagram")
 
 ## Random Walker
 
-![alt text](images/randomwalker.gif "Random Walker")
+![alt text](projects/032_random_walker/randomwalker.gif "Random Walker")
 
 ## Levy Flight
 
-![alt text](images/levyflight.gif "Slider2DWidget")
+![alt text](projects/033_levy_flight/levyflight.gif "Slider2DWidget")
 
 ## Plotting Cos Sin Tan
 
-![alt text](images/plotting_cos_sin_tan.gif "Plotting Cos Sin Tan")
+![alt text](projects/036_plotting_cos_sin_tan/plotting_cos_sin_tan.gif "Plotting Cos Sin Tan")
