@@ -6,9 +6,9 @@ Collections of Experiments made in Python
 
 Using Genetic Algorithm to Evolve Triangles to match an image
 
-[Read More](examples/38_evolisa/evolisa.md)
+[Read More](projects/038_evolisa/evolisa.md)
 
-![alt text](examples/38_evolisa/images/evolisa.gif "EvoLisa")
+![alt text](projects/038_evolisa/images/evolisa.gif "EvoLisa")
 
 ## Raytracer
 
@@ -58,11 +58,11 @@ Using Genetic Algorithm to Evolve Triangles to match an image
 
 LSystem adjusted for tree generation.
 
-![alt text](images/ltree.gif "ltree")
+![alt text](projects/004_tree/images/ltree.gif "ltree")
 
 ## LSystem
 
-![alt text](images/lsystem.gif "LSystem")
+![alt text](projects/003_LSystem/images/lsystem.gif "LSystem")
 
 ## Pythagoras Tree
 
@@ -78,7 +78,7 @@ LSystem adjusted for tree generation.
 
 ## Diffusion Limited Aggregation
 
-![alt text](images/dla.gif "Diffusion Limited Aggregation")
+![alt text](projects/034_diffusion_limited_Aggregation/images/dla.gif "Diffusion Limited Aggregation")
 
 ## Perlin Noise 2D
 
@@ -98,7 +98,7 @@ LSystem adjusted for tree generation.
 
 ## Fibonacci Golden Ratio
 
-![alt text](images/fibonacci_golden_ratio.gif "Fobnacci Golden Ratio")
+![alt text](projects/006_fibonacci/images/fibonacci_golden_ratio.gif "Fobnacci Golden Ratio")
 
 ## Rasterization
 
@@ -110,7 +110,9 @@ LSystem adjusted for tree generation.
 
 ## Slider2DWidget
 
-![alt text](images/slider2d.gif "Slider2DWidget")
+![alt text](projects/001_slider2d/images/slider2d.gif "Slider2DWidget")
+
+[Read More](projects/001_slider2d/README.md)
 
 ## Star Field
 
