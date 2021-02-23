@@ -1,12 +1,13 @@
 import math
 import random
+from pstats import SortKey
 
 from PySide2.QtCore import QTimer, QSize, QPointF
 from PySide2.QtGui import QPainter, QPen, QColor
 from PySide2.QtWidgets import QApplication, QWidget
 
 
-class Vec2:
+class Vec2(object):
     def __init__(self, x=0.0, y=0.0):
         self.x = x
         self.y = y
@@ -18,21 +19,21 @@ class Vec2:
 class Boid:
     def __init__(self):
         self.pos = Vec2()
-        self.dir = Vec2(x=1, y=0)
+        self.dir = dir
         self.velocity = 0.5
         # self.steering = random.random() * 0.1
 
-        self.separation = random.random() * 0.8
-        self.alignment = 0.5 + random.random() * 0.5
-        self.cohesion = random.random() * 0.5
+        self.separation = random.random()
+        self.alignment = random.random()
+        self.cohesion = random.random()
         self.debug = False
         self.eyesight = math.radians(120)
 
-        self.steering = 0.005
+        self.steering = 0.05
 
-        # self.separation = 0.0
-        # self.alignment = 1.0
-        # self.cohesion = 0.0
+        # self.separation = 1.0
+        # self.alignment = 0.0
+        # self.cohesion = 1.0
 
 
 def add_vec2(vec1, vec2):
@@ -41,6 +42,11 @@ def add_vec2(vec1, vec2):
 
 def sub_vec2(vec1, vec2):
     return Vec2(x=vec1.x - vec2.x, y=vec1.y - vec2.y)
+
+
+def substract_vec2(vec1, vec2):
+    vec1.x -= vec2.x
+    vec1.y -= vec2.y
 
 
 def mul_vec2(vec, value):
@@ -55,7 +61,7 @@ def div_vec(vec, value):
     return Vec2(x=vec.x / value, y=vec.y / value)
 
 
-def normalize_vec(vec):
+def normalized_vec(vec):
     length = len_vec(vec)
     return Vec2(vec.x / length, vec.y / length)
 
@@ -69,32 +75,34 @@ class Environment:
         self.width = 500
         self.height = 500
         self.boids = []
-        self.neighbour_max_distance = 100.0
+        self.neighbour_max_distance = 25.0
+        self.neighbour_max_distance2 = self.neighbour_max_distance * self.neighbour_max_distance
 
 
 def get_neighbours(environment, boid):
     neighbours = []
+    dist_vec = Vec2()
     for boid_i in environment.boids:
         if boid_i == boid:
             continue
-        dist_vec = sub_vec2(boid_i.pos, boid.pos)
-        distance = len_vec(dist_vec)
-        if distance == 0.0:
+        dist_vec.x = boid_i.pos.x
+        dist_vec.y = boid_i.pos.y
+        substract_vec2(dist_vec, boid.pos)
+        # distance = len_vec(dist_vec)
+        dist_dist = dist_vec.x * dist_vec.x + dist_vec.y * dist_vec.y
+        if dist_dist == 0.0:
             neighbours.append(boid_i)
-        elif distance <= environment.neighbour_max_distance:
-            dist_normalised = normalize_vec(dist_vec)
-            dot = dot_vec(normalize_vec(boid.dir), dist_normalised)
+        elif dist_dist <= environment.neighbour_max_distance2:
+            dist_normalised = normalized_vec(dist_vec)
+            dot = dot_vec(boid.dir, dist_normalised)
             # radians = math.acos(dot)
             # radians = math.atan2(dist_normalised.y, dist_normalised.x)
             if dot > 1.0:
                 dot = 1.0
-            try:
-                angle = math.acos(dot)
-            except ValueError:
-                angle = 0
+            if dot < -1.0:
+                dot = 1.0
 
-            if boid.debug:
-                pass
+            angle = math.acos(dot)
 
             if abs(angle) > boid.eyesight:
                 continue
@@ -111,7 +119,7 @@ def _calc_separation_vec(boid, neighbours):
         separation_vec = add_vec2(separation_vec, diff)
 
     separation_vec = mul_vec2(separation_vec, -1.0)
-    separation_vec = normalize_vec(separation_vec)
+    separation_vec = normalized_vec(separation_vec)
     return separation_vec
 
 
@@ -119,7 +127,7 @@ def _calc_alignment_vec(boid, neighbours):
     average_direction = Vec2()
     for neighbour in neighbours:
         average_direction = add_vec2(average_direction, neighbour.dir)
-    alignment_vec = normalize_vec(average_direction)
+    alignment_vec = normalized_vec(average_direction)
     return alignment_vec
 
 
@@ -128,7 +136,7 @@ def _calc_cohesion(boid, neighbours):
     for neighbour in neighbours:
         average_pos = add_vec2(average_pos, neighbour.pos)
     average_pos = div_vec(average_pos, len(neighbours))
-    cohesion_vec = normalize_vec(sub_vec2(average_pos, boid.pos))
+    cohesion_vec = normalized_vec(sub_vec2(average_pos, boid.pos))
     return cohesion_vec
 
 
@@ -163,28 +171,31 @@ def tick_boid(environment, boid):
         new_dir = add_vec2(new_dir, separation_vec)
         new_dir = add_vec2(new_dir, alignment_vec)
         new_dir = add_vec2(new_dir, cohesion_vec)
-        new_dir = normalize_vec(new_dir)
+        new_dir = normalized_vec(new_dir)
     else:
         new_dir = boid.dir
 
     # boid.dir = new_dir
 
-    dot = dot_vec(normalize_vec(boid.dir), new_dir)
+    dot = dot_vec(boid.dir, new_dir)
     if dot > 1.0:
         dot = 1.0
+    elif dot < -1.0:
+        dot = -1.0
+
     angle = math.acos(dot)
 
     # if angle > 180.0:
     #     print(math.degrees(angle))
 
-    v = rotate(boid.dir, angle)
-    angle = math.atan2(v.y, v.x)
+    # v = rotate(boid.dir, angle)
+    # angle = math.atan2(v.y, v.x)
     # print(angle)
-    boid.dir = rotate(boid.dir, angle * boid.steering)
+    # boid.dir = rotate(boid.dir, angle * boid.steering)
 
-    # boid.dir = normalize_vec(
-    #     add_vec2(boid.dir, mul_vec2(sub_vec2(boid.dir, new_dir), boid.steering))
-    # )
+    boid.dir = normalized_vec(
+        add_vec2(boid.dir, mul_vec2(sub_vec2(new_dir, boid.dir), boid.steering))
+    )
 
 
 def tick_move_boids(environment, boid):
@@ -287,7 +298,7 @@ class BoidsWidget(QWidget):
         self.setWindowTitle('Boids')
         self.environment = self._make_environment()
         self.tick_timer = QTimer()
-        self.tick_timer.setInterval(10)
+        self.tick_timer.setInterval(1)
         self.tick_timer.timeout.connect(self.tick)
         self.tick_timer.start()
 
@@ -297,18 +308,20 @@ class BoidsWidget(QWidget):
 
     def _make_environment(self):
         env = Environment()
-        for i in range(200):
+        for i in range(60):
             boid = Boid()
             boid.pos.x = random.randint(50, env.width - 100)
             boid.pos.y = random.randint(50, env.height - 100)
 
             dir = Vec2((random.random() * 2.0) - 1.0, (random.random() * 2.0) - 1.0)
-            boid.dir = normalize_vec(dir)
+            boid.dir = normalized_vec(dir)
 
             # boid.velocity = 0.5
+            boid.debug = False
 
             env.boids.append(boid)
-        env.boids[0].debug = True
+
+        env.boids[0].debug = False
         env.boids[0].pos = Vec2(env.width / 2.0, env.height / 2.0)
         return env
 
@@ -325,18 +338,19 @@ class BoidsWidget(QWidget):
 
 def main():
     import cProfile
+    sortby = SortKey.CUMULATIVE
     p = cProfile.Profile()
-    p.enable()
+    # p.enable()
     app = QApplication()
     w = BoidsWidget()
     w.show()
     app.exec_()
-    p.disable()
-    p.print_stats()
+    # p.disable()
+    # p.print_stats(sort=sortby)
 
 
 def test_vec():
-    vec1 = normalize_vec(Vec2(x=1.0, y=-1.0))
+    vec1 = normalized_vec(Vec2(x=1.0, y=-1.0))
     vec2 = Vec2(x=1.0, y=0.0)
     diff = sub_vec2(vec1, vec2)
     angle = math.acos(dot_vec(vec1, vec2))
