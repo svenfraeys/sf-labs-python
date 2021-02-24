@@ -2,7 +2,7 @@ import math
 import random
 from pstats import SortKey
 
-from PySide2.QtCore import QTimer, QSize, QPointF
+from PySide2.QtCore import QTimer, QSize, QPointF, Qt
 from PySide2.QtGui import QPainter, QPen, QColor
 from PySide2.QtWidgets import QApplication, QWidget
 
@@ -20,7 +20,7 @@ class Boid:
     def __init__(self):
         self.pos = Vec2()
         self.dir = dir
-        self.velocity = 0.5
+        self.velocity = random.random()
         # self.steering = random.random() * 0.1
 
         self.separation = random.random()
@@ -31,9 +31,9 @@ class Boid:
 
         self.steering = 0.05
 
-        # self.separation = 1.0
-        # self.alignment = 0.0
-        # self.cohesion = 1.0
+        self.separation = 1.0
+        self.alignment = 1.0
+        self.cohesion = 1.0
 
 
 def add_vec2(vec1, vec2):
@@ -300,6 +300,10 @@ class BoidsWidget(QWidget):
         self.tick_timer = QTimer()
         self.tick_timer.setInterval(1)
         self.tick_timer.timeout.connect(self.tick)
+        # self.tick_timer.start()
+        self.setCursor(Qt.BlankCursor)
+
+    def mousePressEvent(self, event):
         self.tick_timer.start()
 
     def tick(self):
