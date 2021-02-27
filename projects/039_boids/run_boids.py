@@ -20,7 +20,7 @@ class Boid:
     def __init__(self):
         self.pos = Vec2()
         self.dir = dir
-        self.velocity = random.random()
+        self.velocity = 1.0
         # self.steering = random.random() * 0.1
 
         self.separation = random.random()
@@ -119,7 +119,7 @@ def _calc_separation_vec(boid, neighbours):
         separation_vec = add_vec2(separation_vec, diff)
 
     separation_vec = mul_vec2(separation_vec, -1.0)
-    separation_vec = normalized_vec(separation_vec)
+    # separation_vec = normalized_vec(separation_vec)
     return separation_vec
 
 
@@ -127,7 +127,8 @@ def _calc_alignment_vec(boid, neighbours):
     average_direction = Vec2()
     for neighbour in neighbours:
         average_direction = add_vec2(average_direction, neighbour.dir)
-    alignment_vec = normalized_vec(average_direction)
+    alignment_vec = average_direction
+    alignment_vec = normalized_vec(alignment_vec)
     return alignment_vec
 
 
@@ -136,7 +137,8 @@ def _calc_cohesion(boid, neighbours):
     for neighbour in neighbours:
         average_pos = add_vec2(average_pos, neighbour.pos)
     average_pos = div_vec(average_pos, len(neighbours))
-    cohesion_vec = normalized_vec(sub_vec2(average_pos, boid.pos))
+    cohesion_vec = sub_vec2(average_pos, boid.pos)
+    # cohesion_vec = normalized_vec(cohesion_vec)
     return cohesion_vec
 
 
@@ -149,7 +151,7 @@ def tick_boid(environment, boid):
     if neighbours:
         separation_vec = _calc_separation_vec(boid, neighbours)
 
-    separation_vec = mul_vec2(separation_vec, boid.separation)
+    # separation_vec = mul_vec2(separation_vec, boid.separation)
 
     # alignment
     alignment_vec = Vec2()
@@ -166,7 +168,7 @@ def tick_boid(environment, boid):
 
     cohesion_vec = mul_vec2(cohesion_vec, boid.cohesion)
 
-    new_dir = Vec2()
+    new_dir = boid.dir
     if neighbours:
         new_dir = add_vec2(new_dir, separation_vec)
         new_dir = add_vec2(new_dir, alignment_vec)
@@ -275,7 +277,7 @@ def draw_boid(painter, environment, boid):
 
         if neighbours:
             separation_vec = _calc_separation_vec(boid, neighbours)
-            _draw_boid_debug_line(painter, boid, mul_vec2(separation_vec, 50))
+            _draw_boid_debug_line(painter, boid, mul_vec2(separation_vec, 1))
 
             alignment_vec = _calc_alignment_vec(boid, neighbours)
             color = QColor()
@@ -289,7 +291,7 @@ def draw_boid(painter, environment, boid):
             color.setRgb(0, 120, 0)
             pen.setColor(color)
             painter.setPen(pen)
-            _draw_boid_debug_line(painter, boid, mul_vec2(cohesion, 50))
+            _draw_boid_debug_line(painter, boid, mul_vec2(cohesion, 1))
 
 
 class BoidsWidget(QWidget):
@@ -312,7 +314,7 @@ class BoidsWidget(QWidget):
 
     def _make_environment(self):
         env = Environment()
-        for i in range(60):
+        for i in range(100):
             boid = Boid()
             boid.pos.x = random.randint(50, env.width - 100)
             boid.pos.y = random.randint(50, env.height - 100)
@@ -325,7 +327,7 @@ class BoidsWidget(QWidget):
 
             env.boids.append(boid)
 
-        env.boids[0].debug = False
+        env.boids[0].debug = True
         env.boids[0].pos = Vec2(env.width / 2.0, env.height / 2.0)
         return env
 
