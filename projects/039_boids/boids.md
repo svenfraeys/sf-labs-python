@@ -5,7 +5,8 @@ Based on Craig Reynolds concept.
 
 ## Resources
 
-* http://www.red3d.com/cwr/boids/
-* http://www.cs.toronto.edu/~dt/siggraph97-course/cwr87/
- 
+* <http://www.red3d.com/cwr/boids/>
+* <http://www.cs.toronto.edu/~dt/siggraph97-course/cwr87/>
+* <http://www.kfish.org/boids/pseudocode.html>
+
 ![alt text](images/boids.jpg "boids")
