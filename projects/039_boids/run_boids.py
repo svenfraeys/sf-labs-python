@@ -16,16 +16,21 @@ class Vec2(object):
         return 'Vec2(x={!r}, y={!r})'.format(self.x, self.y)
 
 
+class Environment:
+    def __init__(self):
+        self.width = 500
+        self.height = 500
+        self.boids = []
+        self.neighbour_max_distance = 200.0
+        self.neighbour_max_distance2 = self.neighbour_max_distance * self.neighbour_max_distance
+
+
 class Boid:
     def __init__(self):
         self.pos = Vec2()
-        self.dir = dir
-        self.velocity = 1.0
+        self.velocity = Vec2()
         # self.steering = random.random() * 0.1
 
-        self.separation = random.random()
-        self.alignment = random.random()
-        self.cohesion = random.random()
         self.debug = False
         self.eyesight = math.radians(120)
 
@@ -70,15 +75,6 @@ def dot_vec(vec1, vec2):
     return vec1.x * vec2.x + vec1.y * vec2.y
 
 
-class Environment:
-    def __init__(self):
-        self.width = 500
-        self.height = 500
-        self.boids = []
-        self.neighbour_max_distance = 25.0
-        self.neighbour_max_distance2 = self.neighbour_max_distance * self.neighbour_max_distance
-
-
 def get_neighbours(environment, boid):
     neighbours = []
     dist_vec = Vec2()
@@ -94,7 +90,7 @@ def get_neighbours(environment, boid):
             neighbours.append(boid_i)
         elif dist_dist <= environment.neighbour_max_distance2:
             dist_normalised = normalized_vec(dist_vec)
-            dot = dot_vec(boid.dir, dist_normalised)
+            dot = dot_vec(boid.velocity, dist_normalised)
             # radians = math.acos(dot)
             # radians = math.atan2(dist_normalised.y, dist_normalised.x)
             if dot > 1.0:
@@ -114,106 +110,100 @@ def get_neighbours(environment, boid):
 
 def _calc_separation_vec(boid, neighbours):
     separation_vec = Vec2()
-    for neighbour in neighbours:
-        diff = sub_vec2(neighbour.pos, boid.pos)
-        separation_vec = add_vec2(separation_vec, diff)
+    if neighbours:
+        for neighbour in neighbours:
+            diff = sub_vec2(neighbour.pos, boid.pos)
+            separation_vec = sub_vec2(separation_vec, diff)
 
-    separation_vec = mul_vec2(separation_vec, -1.0)
-    # separation_vec = normalized_vec(separation_vec)
     return separation_vec
 
 
 def _calc_alignment_vec(boid, neighbours):
     average_direction = Vec2()
-    for neighbour in neighbours:
-        average_direction = add_vec2(average_direction, neighbour.dir)
-    alignment_vec = average_direction
-    alignment_vec = normalized_vec(alignment_vec)
-    return alignment_vec
+    if neighbours:
+        for neighbour in neighbours:
+            average_direction = add_vec2(average_direction, neighbour.velocity)
+
+        average_direction = div_vec(average_direction, len(neighbours))
+        average_direction = div_vec(average_direction, 8)
+    # alignment_vec = average_direction
+    # alignment_vec = normalized_vec(alignment_vec)
+    return average_direction
 
 
 def _calc_cohesion(boid, neighbours):
     average_pos = Vec2()
-    for neighbour in neighbours:
-        average_pos = add_vec2(average_pos, neighbour.pos)
-    average_pos = div_vec(average_pos, len(neighbours))
-    cohesion_vec = sub_vec2(average_pos, boid.pos)
-    # cohesion_vec = normalized_vec(cohesion_vec)
-    return cohesion_vec
+    if neighbours:
+        for neighbour in neighbours:
+            average_pos = add_vec2(average_pos, neighbour.pos)
+        average_pos = div_vec(average_pos, len(neighbours))
+        average_pos = sub_vec2(average_pos, boid.pos)
+        average_pos = div_vec(average_pos, 100.0)
+    return average_pos
+
+
+def _limit_velocity(velocity):
+    if len_vec(velocity) > 0.5:
+        return mul_vec2(normalized_vec(velocity), 0.5)
+    return Vec2(velocity.x, velocity.y)
 
 
 def tick_boid(environment, boid):
     neighbours = get_neighbours(environment, boid)
 
     # separation
-    separation_vec = Vec2()
-
-    if neighbours:
-        separation_vec = _calc_separation_vec(boid, neighbours)
-
-    # separation_vec = mul_vec2(separation_vec, boid.separation)
+    separation_vec = _calc_separation_vec(boid, neighbours)
+    separation_vec = mul_vec2(separation_vec, boid.separation)
 
     # alignment
-    alignment_vec = Vec2()
-
-    if neighbours:
-        alignment_vec = _calc_alignment_vec(boid, neighbours)
-
+    alignment_vec = _calc_alignment_vec(boid, neighbours)
     alignment_vec = mul_vec2(alignment_vec, boid.alignment)
 
-    # cohesion
-    cohesion_vec = Vec2()
-    if neighbours:
-        cohesion_vec = _calc_cohesion(boid, neighbours)
-
+    cohesion_vec = _calc_cohesion(boid, neighbours)
     cohesion_vec = mul_vec2(cohesion_vec, boid.cohesion)
 
-    new_dir = boid.dir
-    if neighbours:
-        new_dir = add_vec2(new_dir, separation_vec)
-        new_dir = add_vec2(new_dir, alignment_vec)
-        new_dir = add_vec2(new_dir, cohesion_vec)
-        new_dir = normalized_vec(new_dir)
-    else:
-        new_dir = boid.dir
+    velocity = boid.velocity
+    velocity = add_vec2(velocity, separation_vec)
+    velocity = add_vec2(velocity, alignment_vec)
+    velocity = add_vec2(velocity, cohesion_vec)
+    velocity = _limit_velocity(velocity)
+    boid.velocity = velocity
 
-    # boid.dir = new_dir
+    boid.pos = add_vec2(boid.pos, velocity)
+    # bound_v = _bound_position(environment, boid)
+    # boid.velocity = bound_v
 
-    dot = dot_vec(boid.dir, new_dir)
-    if dot > 1.0:
-        dot = 1.0
-    elif dot < -1.0:
-        dot = -1.0
 
-    angle = math.acos(dot)
+def _bound_position(env, boid):
+    xmin, xmax, ymin, ymax = 0, env.width, 0, env.height
+    vec = Vec2()
+    if boid.pos.x < xmin:
+        vec.x = 10
+    elif boid.pos.x > xmax:
+        vec.x = -10
 
-    # if angle > 180.0:
-    #     print(math.degrees(angle))
+    if boid.pos.y < ymin:
+        vec.y = 10
+    elif boid.pos.y > ymax:
+        vec.y = -10
 
-    # v = rotate(boid.dir, angle)
-    # angle = math.atan2(v.y, v.x)
-    # print(angle)
-    # boid.dir = rotate(boid.dir, angle * boid.steering)
-
-    boid.dir = normalized_vec(
-        add_vec2(boid.dir, mul_vec2(sub_vec2(new_dir, boid.dir), boid.steering))
-    )
+    return vec
 
 
 def tick_move_boids(environment, boid):
     # move
-    new_pos = add_vec2(boid.pos, mul_vec2(boid.dir, boid.velocity))
-    new_pos.x = new_pos.x % environment.width
-    new_pos.y = new_pos.y % environment.height
+    new_pos = add_vec2(boid.pos, boid.velocity)
+    bound_v = _bound_position(environment, boid)
+    boid.velocity = bound_v
+
+    # new_pos.x = new_pos.x % environment.width
+    # new_pos.y = new_pos.y % environment.height
     boid.pos = new_pos
 
 
 def tick_environment(environment):
     for boid in environment.boids:
         tick_boid(environment, boid)
-
-    for boid in environment.boids:
-        tick_move_boids(environment, boid)
 
 
 def rotate(vec, angle):
@@ -238,12 +228,16 @@ def _draw_boid_debug_line(painter, boid, vec):
 def draw_boid(painter, environment, boid):
     size = 10.0
     half_size = size / 2.0
-    end_point = add_vec2(boid.pos, mul_vec2(boid.dir, size * 1.5))
+    if len_vec(boid.velocity) != 0:
+        direction = normalized_vec(boid.velocity)
+    else:
+        direction = Vec2(1.0, 0.0)
+    end_point = add_vec2(boid.pos, mul_vec2(direction, size * 1.5))
     # painter.drawEllipse(boid.pos.x - 10, boid.pos.y - 10, 20, 20)
     # painter.drawLine(boid.pos.x, boid.pos.y, end_point.x, end_point.y)
 
-    side_1 = add_vec2(boid.pos, mul_vec2(perpendicular_vec_clockwise(boid.dir), half_size))
-    side_2 = add_vec2(boid.pos, mul_vec2(perpendicular_vec_counter_clockwise(boid.dir), half_size))
+    side_1 = add_vec2(boid.pos, mul_vec2(perpendicular_vec_clockwise(direction), half_size))
+    side_2 = add_vec2(boid.pos, mul_vec2(perpendicular_vec_counter_clockwise(direction), half_size))
     pen = QPen()
     color = QColor()
     if boid.debug:
@@ -259,10 +253,10 @@ def draw_boid(painter, environment, boid):
     if boid.debug:
         max_dist = environment.neighbour_max_distance
         pen.setColor(color)
-        _draw_boid_debug_line(painter, boid, mul_vec2(boid.dir, max_dist))
+        _draw_boid_debug_line(painter, boid, mul_vec2(direction, max_dist))
         # draw direction
-        sight_one = mul_vec2(rotate(boid.dir, boid.eyesight), max_dist)
-        sight_two = mul_vec2(rotate(boid.dir, -boid.eyesight), max_dist)
+        sight_one = mul_vec2(rotate(direction, boid.eyesight), max_dist)
+        sight_two = mul_vec2(rotate(direction, -boid.eyesight), max_dist)
         _draw_boid_debug_line(painter, boid, sight_one)
         _draw_boid_debug_line(painter, boid, sight_two)
 
@@ -314,13 +308,13 @@ class BoidsWidget(QWidget):
 
     def _make_environment(self):
         env = Environment()
-        for i in range(100):
+        for i in range(80):
             boid = Boid()
             boid.pos.x = random.randint(50, env.width - 100)
             boid.pos.y = random.randint(50, env.height - 100)
 
             dir = Vec2((random.random() * 2.0) - 1.0, (random.random() * 2.0) - 1.0)
-            boid.dir = normalized_vec(dir)
+            boid.velocity = normalized_vec(dir)
 
             # boid.velocity = 0.5
             boid.debug = False
