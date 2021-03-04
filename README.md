@@ -10,6 +10,13 @@ Using Genetic Algorithm to Evolve Triangles to match an image
 
 ![alt text](projects/038_evolisa/images/evolisa.gif "EvoLisa")
 
+## Boids
+
+Implementation of coordinated animal motion such as bird flocks and fish schools.
+Based on Craig Reynolds concept.
+
+![alt text](projects/039_boids/images/boids.gif "boids")
+
 ## Raytracer
 
 ![alt text](projects/018_ray_tracer/raytracer_shadows_reflection.png "ray tracer shadows")

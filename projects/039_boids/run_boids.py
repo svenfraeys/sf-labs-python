@@ -1,3 +1,6 @@
+"""
+
+"""
 import math
 import random
 
@@ -6,6 +9,7 @@ from PySide2.QtGui import QPainter, QPen, QColor
 from PySide2.QtWidgets import QApplication, QWidget, QHBoxLayout, QFormLayout, QPushButton, QSpinBox, QDoubleSpinBox, \
     QCheckBox
 
+TOTAL_BOIDS = 150
 DEFAULT_MAX_SPEED = 9.0
 DEFAULT_MAX_DISTANCE = 60.0
 DEFAULT_EYE_SIGHT_ANGLE = 120.0
@@ -452,7 +456,7 @@ class BoidsApp(QWidget):
         self._tick_button.setText('Tick')
         self._tick_button.clicked.connect(self.__do_tick)
 
-        self._total_spinbox = _make_spinbox(50, 0, 9999)
+        self._total_spinbox = _make_spinbox(TOTAL_BOIDS, 0, 9999)
         self._total_spinbox.valueChanged.connect(self.__total_changed)
 
         self._max_speed_spinbox = _make_double_spinbox(DEFAULT_MAX_SPEED, 0.0, 9999.0, 0.1)
