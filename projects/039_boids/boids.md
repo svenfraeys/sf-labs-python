@@ -3,7 +3,7 @@
 Implementation of coordinated animal motion such as bird flocks and fish schools.
 Based on Craig Reynolds concept.
 
-![alt text](images/boids.gif "boids animation")
+![alt text](images/boids2.gif "boids animation")
 
 ## How to run
 

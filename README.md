@@ -17,7 +17,7 @@ Based on Craig Reynolds concept.
 
 [Read More](projects/039_boids/boids.md)
 
-![alt text](projects/039_boids/images/boids.gif "boids")
+![alt text](projects/039_boids/images/boids2.gif "boids")
 
 ## Raytracer
 

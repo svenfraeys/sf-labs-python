@@ -540,8 +540,9 @@ class BoidsApp(QWidget):
         self._boids_environment.max_speed = self._max_speed_spinbox.value()
 
     def __eyesight_radius_changed(self):
-        self._boids_environment.neighbour_max_distance = self._eyesight_radius_spinbox.value()
-        self._boids_environment.neighbour_max_distance2 = self._eyesight_radius_spinbox.value()
+        value = self._eyesight_radius_spinbox.value()
+        self._boids_environment.neighbour_max_distance = value
+        self._boids_environment.neighbour_max_distance2 = value * value
 
     def __is_running_changed(self):
         self._boids_environment.is_running = self._is_running_checkbox.isChecked()
