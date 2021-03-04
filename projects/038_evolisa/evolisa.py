@@ -9,7 +9,7 @@ import random
 import imageio
 import numpy as np
 from PySide2.QtCore import QPoint, QSize, QObject, Signal, QThread
-from PySide2.QtGui import QPainter, QPainterPath, Qt, QPixmap, QBrush, QColor
+from PySide2.QtGui import QPainter, QPainterPath, Qt, QPixmap, QBrush, QColor, QImage
 from PySide2.QtWidgets import QWidget, QApplication
 
 TRIANGLE_SIZE = 10
@@ -291,6 +291,7 @@ class EvoLisaWorker(QObject):
 class EvoLisaWidget(QWidget):
     def __init__(self):
         super(EvoLisaWidget, self).__init__()
+        self.__image = QImage('evolisa.png')
         self.__thread = QThread()
         self.__worker = EvoLisaWorker()
         self.__worker.moveToThread(self.__thread)
@@ -303,7 +304,7 @@ class EvoLisaWidget(QWidget):
         self.setWindowTitle('EvoLisa')
 
     def __report_progress(self, chromosone, generation):
-        size = self.__worker.width(), self.__worker.height()
+        size = 250, 250
         total_triangles = self.__worker.total_triangles()
         self.__pixmap = _chromosone_to_pixmap(chromosone, total_triangles, size)
         self.setWindowTitle('EvoLisa g={}'.format(generation))
@@ -320,9 +321,10 @@ class EvoLisaWidget(QWidget):
         painter = QPainter()
         painter.begin(self)
         painter.drawPixmap(QPoint(), self.__pixmap)
+        painter.drawImage(QPoint(250, 0), self.__image)
 
     def sizeHint(self):
-        return QSize(self.__worker.width(), self.__worker.height())
+        return QSize(500, 250)
 
     def closeEvent(self, event):
         self.__worker.stop()
