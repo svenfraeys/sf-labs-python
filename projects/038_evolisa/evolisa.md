@@ -9,7 +9,6 @@ Evolved Art with Transparent, Overlapping, and Geometric Shapes
 * I developed a genetic algorithm to evolve transparent triangles to match with a given image.
 * GA Genetic Algorithm with a fitness function, crossovers and mutation.
 
-using numpy, pyside2 implementation implementing 
 
 ## How to run
 
