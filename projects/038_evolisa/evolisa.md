@@ -17,6 +17,7 @@ python evolisa.py
 ```
 
 Requirements:
+* Python 3.7
 * Pyside2
 * numpy
 * imageio
