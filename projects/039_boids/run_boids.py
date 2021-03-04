@@ -406,9 +406,9 @@ class BoidsWidget(QWidget):
 
 def _make_spinbox(default, min_value, max_value):
     spinbox = QSpinBox()
-    spinbox.setValue(default)
     spinbox.setMaximum(max_value)
     spinbox.setMinimum(min_value)
+    spinbox.setValue(default)
     return spinbox
 
 
