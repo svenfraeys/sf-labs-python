@@ -6,11 +6,11 @@ from PySide2.QtGui import QPainter, QPen, QColor
 from PySide2.QtWidgets import QApplication, QWidget, QHBoxLayout, QFormLayout, QPushButton, QSpinBox, QDoubleSpinBox, \
     QCheckBox
 
-DEFAULT_MAX_SPEED = 3.0
+DEFAULT_MAX_SPEED = 9.0
 DEFAULT_MAX_DISTANCE = 60.0
 DEFAULT_EYE_SIGHT_ANGLE = 120.0
-SEPARATION_DISTANCE = 10.0
-PUSH_BACK_SPEED = 0.1
+SEPARATION_DISTANCE = 20.0
+PUSH_BACK_SPEED = 0.5
 COHESION_STRENGTH = 0.01
 SEPRATION_STRENGTH = 0.1
 SEPARATION_VALUE = 1.0
@@ -44,6 +44,7 @@ class BoidsEnvironment:
         self.max_speed = DEFAULT_MAX_SPEED
         self.boids = []
         self.neighbour_max_distance = DEFAULT_MAX_DISTANCE
+        self.neighbour_max_distance2 = DEFAULT_MAX_DISTANCE * DEFAULT_MAX_DISTANCE
 
 
 class Boid:
@@ -57,6 +58,7 @@ class Boid:
 
         self.steering = 0.05
         self.separation_distance = SEPARATION_DISTANCE
+        self.separation_distance2 = SEPARATION_DISTANCE * SEPARATION_DISTANCE
 
         self.separation = 1.0
         self.alignment = 1.0
@@ -84,6 +86,10 @@ def len_vec(vec):
     return math.sqrt(vec.x * vec.x + vec.y * vec.y)
 
 
+def len2_vec(vec):
+    return vec.x * vec.x + vec.y * vec.y
+
+
 def div_vec(vec, value):
     return Vec2(x=vec.x / value, y=vec.y / value)
 
@@ -99,6 +105,7 @@ def dot_vec(vec1, vec2):
 
 def get_neighbours(environment, boid, angle=True):
     neighbours = []
+    angle_neighbours = []
     dist_vec = Vec2()
 
     for boid_i in environment.boids:
@@ -107,15 +114,17 @@ def get_neighbours(environment, boid, angle=True):
         dist_vec.x = boid_i.pos.x
         dist_vec.y = boid_i.pos.y
         substract_vec2(dist_vec, boid.pos)
+
         # distance = len_vec(dist_vec)
         dist_dist = dist_vec.x * dist_vec.x + dist_vec.y * dist_vec.y
-        neighbour_max_distance2 = environment.neighbour_max_distance * environment.neighbour_max_distance
 
         if dist_dist == 0.0:
             neighbours.append(boid_i)
-        elif dist_dist <= neighbour_max_distance2:
+        elif dist_dist <= environment.neighbour_max_distance2:
             dist_normalised = normalized_vec(dist_vec)
             dot = dot_vec(boid.velocity, dist_normalised)
+            neighbours.append(boid_i)
+
             if angle:
                 # radians = math.acos(dot)
                 # radians = math.atan2(dist_normalised.y, dist_normalised.x)
@@ -124,16 +133,14 @@ def get_neighbours(environment, boid, angle=True):
                 if dot < -1.0:
                     dot = 1.0
 
-                angle = math.acos(dot)
+                current_angle = math.acos(dot)
 
-                if abs(angle) > boid.eyesight:
+                if abs(current_angle) > boid.eyesight:
                     continue
 
-                neighbours.append(boid_i)
-            else:
-                neighbours.append(boid_i)
+                angle_neighbours.append(boid_i)
 
-    return neighbours
+    return neighbours, angle_neighbours
 
 
 def _calc_separation_vec(boid, neighbours):
@@ -141,7 +148,7 @@ def _calc_separation_vec(boid, neighbours):
     if neighbours:
         for neighbour in neighbours:
             diff = sub_vec2(neighbour.pos, boid.pos)
-            if len_vec(diff) < boid.separation_distance:
+            if len2_vec(diff) < boid.separation_distance2:
                 separation_vec = sub_vec2(separation_vec, diff)
         separation_vec = mul_vec2(separation_vec, SEPRATION_STRENGTH)
     return separation_vec
@@ -179,8 +186,8 @@ def _limit_velocity(env, velocity):
 
 
 def tick_boid(environment, boid):
-    neighbours = get_neighbours(environment, boid)
-    all_neighbours = get_neighbours(environment, boid, angle=False)
+    all_neighbours, neighbours = get_neighbours(environment, boid)
+
     # separation
     separation_vec = _calc_separation_vec(boid, all_neighbours)
     separation_vec = mul_vec2(separation_vec, boid.separation)
@@ -306,12 +313,12 @@ def draw_boid(painter, environment, boid):
         _draw_boid_debug_circle(painter, boid, boid.separation_distance)
 
         # draw detected neighbourds
-        neighbours = get_neighbours(environment, boid)
-        for neighbour in neighbours:
+        neighbours, angle_neighbours = get_neighbours(environment, boid)
+        for neighbour in angle_neighbours:
             _draw_boid_debug_circle(painter, neighbour, 2)
 
-        if neighbours:
-            separation_vec = _calc_separation_vec(boid, neighbours)
+        if angle_neighbours:
+            separation_vec = _calc_separation_vec(boid, angle_neighbours)
 
             color = QColor()
             color.setRgb(200, 0, 200)
@@ -319,14 +326,14 @@ def draw_boid(painter, environment, boid):
             painter.setPen(pen)
             _draw_boid_debug_line(painter, boid, mul_vec2(separation_vec, 1))
 
-            alignment_vec = _calc_alignment_vec(boid, neighbours)
+            alignment_vec = _calc_alignment_vec(boid, angle_neighbours)
             color = QColor()
             color.setRgb(0, 200, 200)
             pen.setColor(color)
             painter.setPen(pen)
             _draw_boid_debug_line(painter, boid, mul_vec2(alignment_vec, 50))
 
-            cohesion = _calc_cohesion(boid, neighbours)
+            cohesion = _calc_cohesion(boid, angle_neighbours)
             color = QColor()
             color.setRgb(0, 120, 0)
             pen.setColor(color)
@@ -493,7 +500,7 @@ class BoidsApp(QWidget):
         self.setLayout(layout)
 
         self.tick_timer = QTimer()
-        self.tick_timer.setInterval(10)
+        self.tick_timer.setInterval(int(1000 / 24))
         self.tick_timer.timeout.connect(self._tick)
         self.tick_timer.start()
 
@@ -530,6 +537,7 @@ class BoidsApp(QWidget):
 
     def __eyesight_radius_changed(self):
         self._boids_environment.neighbour_max_distance = self._eyesight_radius_spinbox.value()
+        self._boids_environment.neighbour_max_distance2 = self._eyesight_radius_spinbox.value()
 
     def __is_running_changed(self):
         self._boids_environment.is_running = self._is_running_checkbox.isChecked()
@@ -538,6 +546,7 @@ class BoidsApp(QWidget):
         value = self._separation_distance_spinbox.value()
         for boid in self._boids_environment.boids:
             boid.separation_distance = value
+            boid.separation_distance2 = value * value
 
     def __separation_value_changed(self):
         value = self._separation_value_spinbox.value()
@@ -567,20 +576,6 @@ def main():
     w = BoidsApp()
     w.show()
     app.exec_()
-
-
-def test_vec():
-    vec1 = normalized_vec(Vec2(x=1.0, y=-1.0))
-    vec2 = Vec2(x=1.0, y=0.0)
-    diff = sub_vec2(vec1, vec2)
-    angle = math.acos(dot_vec(vec1, vec2))
-    print(angle)
-    print(math.degrees(angle))
-
-    print(rotate(Vec2(0.0, 1.0), math.radians(90)))
-
-    print(dot_vec(Vec2(1.0, 0.0), Vec2(0.0, -1.0)))
-    print(math.degrees(math.atan2(-1.0, 1.0)))
 
 
 if __name__ == '__main__':
